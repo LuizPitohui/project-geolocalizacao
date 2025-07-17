@@ -1,31 +1,40 @@
+# localidades/views.py
+
 from django.shortcuts import render
 from rest_framework import viewsets, filters
 from .models import Localidade
-from .serializers import LocalidadeSerializer
+# ALTERADO: Importamos o novo serializer
+from .serializers import LocalidadeSerializer, LocalidadeNomeSerializer
 from geopy.distance import geodesic
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .filters import BoundingBoxFilter
-# Create your views here.
+
+
 class LocalidadeViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Esta ViewSet fornece as ações `list` (listar todas) e `retrieve` (detalhar uma)
-    para as localidades. É somente leitura.
-    """
+    # Esta ViewSet continua como está, perfeita para o mapa
     queryset = Localidade.objects.all().order_by('municipio', 'comunidade')
     serializer_class = LocalidadeSerializer
-
-    # Adicionando filtros e busca
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [BoundingBoxFilter, filters.SearchFilter]
     search_fields = ['comunidade', 'municipio', 'uf']
 
+
+# NOVO: ViewSet para os nomes das localidades
+class LocalidadeNomeViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet leve que retorna uma lista simplificada de todas as localidades.
+    Usada para popular os menus de seleção sem sobrecarregar a aplicação.
+    A paginação é desativada para garantir que todos os nomes venham de uma vez.
+    """
+    queryset = Localidade.objects.all().order_by('comunidade')
+    serializer_class = LocalidadeNomeSerializer
+    pagination_class = None # IMPORTANTE: Desativa a paginação
+
+
+# A view de distância continua a mesma
 @api_view(['POST'])
 def calcular_distancia_view(request):
-    """
-    Recebe os IDs de duas localidades e retorna a distância geodésica entre elas.
-    Espera um JSON no formato: { "ponto_a_id": <id1>, "ponto_b_id": <id2> }
-    """
     ponto_a_id = request.data.get('ponto_a_id')
     ponto_b_id = request.data.get('ponto_b_id')
 
@@ -43,10 +52,10 @@ def calcular_distancia_view(request):
         coords_b = (ponto_b.latitude, ponto_b.longitude)
         
         if not all(coords_a) or not all(coords_b):
-             return Response(
-                 {"error": "Uma ou ambas as localidades não possuem coordenadas válidas."},
-                 status=status.HTTP_400_BAD_REQUEST
-             )
+                return Response(
+                    {"error": "Uma ou ambas as localidades não possuem coordenadas válidas."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         distancia_km = geodesic(coords_a, coords_b).km
 
@@ -58,12 +67,4 @@ def calcular_distancia_view(request):
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
-         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-class LocalidadeViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Localidade.objects.all().order_by('municipio', 'comunidade')
-    serializer_class = LocalidadeSerializer
-
-    # Adicione o BoundingBoxFilter aqui
-    filter_backends = [BoundingBoxFilter, filters.SearchFilter]
-    search_fields = ['comunidade', 'municipio', 'uf']
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -1,6 +1,6 @@
 // src/pages/DashboardPage.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Box, Drawer, Fab, Tooltip } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -8,7 +8,9 @@ import MapComponent from '../components/MapComponent';
 import FilterPanel from '../components/FilterPanel';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { debounce } from 'lodash';
 
+// A função de formatar tempo continua a mesma
 function formatarTempoViagem(horas) {
     if (horas === null || horas < 0) return '';
     const dias = Math.floor(horas / 24);
@@ -24,9 +26,16 @@ function formatarTempoViagem(horas) {
 function DashboardPage() {
   const [map, setMap] = useState(null);
   const [pontosEmFoco, setPontosEmFoco] = useState(null);
+  
+  // ALTERADO: Este estado agora guarda apenas as localidades VISÍVEIS no mapa
   const [localidades, setLocalidades] = useState([]);
+  
+  // ALTERADO: Este estado continua guardando a lista de NOMES para os filtros
   const [todasLocalidades, setTodasLocalidades] = useState([]);
+  
   const [filtro, setFiltro] = useState('');
+  const [debouncedFiltro, setDebouncedFiltro] = useState('');
+
   const [pontoA, setPontoA] = useState('');
   const [pontoB, setPontoB] = useState('');
   const [distancia, setDistancia] = useState(null);
@@ -35,27 +44,31 @@ function DashboardPage() {
   const [tempoViagem, setTempoViagem] = useState(null);
   const [isPanelVisible, setIsPanelVisible] = useState(false);
 
+  // ALTERADO: Este useEffect agora busca apenas os NOMES das localidades
   useEffect(() => {
-    const fetchAllLocalidades = async () => {
+    const fetchLocalidadeNomes = async () => {
       try {
-        const response = await axios.get('http://localhost:8081/api/localidades/', { params: { limit: 1000 } });
-        const sortedData = response.data.sort((a, b) => a.comunidade.localeCompare(b.comunidade));
-        setTodasLocalidades(sortedData);
-        setLocalidades(sortedData);
+        // Usamos o novo endpoint super leve
+        const response = await axios.get('http://localhost:8081/api/localidades-nomes/');
+        setTodasLocalidades(response.data); // A resposta não é paginada
       } catch (error) {
-        console.error("Não foi possível carregar a lista de localidades.", error);
+        console.error("Não foi possível carregar a lista de nomes de localidades.", error);
       }
     };
-    fetchAllLocalidades();
+    fetchLocalidadeNomes();
   }, []);
 
+  // NOVO: Efeito para aplicar debounce na busca por texto
+  const debouncedSetFiltro = useCallback(debounce((value) => {
+    setDebouncedFiltro(value);
+  }, 500), []); // 500ms de espera
+
   useEffect(() => {
-    const resultadosFiltrados = todasLocalidades.filter(l =>
-        l.comunidade.toLowerCase().includes(filtro.toLowerCase()) ||
-        l.municipio.toLowerCase().includes(filtro.toLowerCase())
-    );
-    setLocalidades(resultadosFiltrados);
-  }, [filtro, todasLocalidades]);
+    debouncedSetFiltro(filtro);
+  }, [filtro, debouncedSetFiltro]);
+
+
+  // REMOVIDO: O useEffect de filtro no lado do cliente foi removido. A lógica agora está no MapComponent.
 
   const handleCalcularDistancia = () => {
     if (!pontoA || !pontoB) { alert('Selecione duas localidades.'); return; }
@@ -69,6 +82,7 @@ function DashboardPage() {
         if (dist && velocidadeMedia > 0) {
           setTempoViagem(formatarTempoViagem(dist / velocidadeMedia));
         }
+        // A lógica de foco no mapa continua a mesma
         const localidadeA = todasLocalidades.find(l => l.id === Number(pontoA));
         const localidadeB = todasLocalidades.find(l => l.id === Number(pontoB));
         if (localidadeA && localidadeB && map) {
@@ -84,26 +98,28 @@ function DashboardPage() {
       .finally(() => setIsLoading(false));
   };
   
-  // Esta é a função para limpar o foco e o resultado do cálculo
   const handleClearRota = () => {
     setPontosEmFoco(null);
     setDistancia(null);
     setTempoViagem(null);
-    // Idealmente, limparíamos os campos do Autocomplete também
     if (map) {
       map.setView([-5.0, -62.0], 6);
     }
   };
 
+  // ALTERADO: A variável que decide o que exibir agora é mais simples
+  // O MapComponent vai cuidar da sua própria lista, mas o foco da rota tem prioridade
   const pontosParaExibir = pontosEmFoco || localidades;
-  const initialPosition = [-5.0, -62.0];
 
   return (
     <Box sx={{ width: '100%', height: 'calc(100vh - 64px)', position: 'relative' }}>
       <MapComponent 
+        // ALTERADO: Passamos as props necessárias para a nova lógica
         localidades={pontosParaExibir} 
+        setLocalidades={setLocalidades}
         setMapInstance={setMap}
         pontosEmFoco={pontosEmFoco}
+        searchFilter={debouncedFiltro} // O filtro com debounce
       />
       <Tooltip title="Abrir Filtros">
         <Fab 
@@ -122,7 +138,7 @@ function DashboardPage() {
         <FilterPanel 
           filtro={filtro}
           setFiltro={setFiltro}
-          todasLocalidades={todasLocalidades}
+          todasLocalidades={todasLocalidades} // A lista leve de nomes continua aqui
           setPontoA={setPontoA}
           setPontoB={setPontoB}
           velocidadeMedia={velocidadeMedia}
