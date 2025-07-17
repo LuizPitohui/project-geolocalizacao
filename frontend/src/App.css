@@ -36,17 +36,3 @@
     transform: rotate(360deg);
   }
 }
-
-/* Adicione/Substitua em src/App.css */
-.app-layout-navbar {
-  display: flex;
-  flex-direction: column; /* Organiza em coluna: navbar em cima, conteúdo embaixo */
-  height: 100vh;
-  background-color: #f7fafc; /* Cor de fundo suave para a área de conteúdo */
-}
-
-.main-content {
-  flex-grow: 1; /* Ocupa todo o espaço vertical restante */
-  overflow-y: auto; /* Adiciona scroll se necessário */
-  padding: 20px;
-}
