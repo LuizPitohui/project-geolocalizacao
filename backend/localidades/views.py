@@ -3,7 +3,6 @@
 from django.shortcuts import render
 from rest_framework import viewsets, filters
 from .models import Localidade
-# ALTERADO: Importamos o novo serializer
 from .serializers import LocalidadeSerializer, LocalidadeNomeSerializer
 from geopy.distance import geodesic
 from rest_framework.decorators import api_view
@@ -13,23 +12,25 @@ from .filters import BoundingBoxFilter
 
 
 class LocalidadeViewSet(viewsets.ReadOnlyModelViewSet):
-    # Esta ViewSet continua como está, perfeita para o mapa
-    queryset = Localidade.objects.all().order_by('municipio', 'comunidade')
+    """
+    ViewSet para o mapa, agora filtrando localidades sem coordenadas.
+    """
+    # ALTERADO: Excluímos localidades com coordenadas nulas para evitar erros
+    queryset = Localidade.objects.exclude(latitude__isnull=True).exclude(longitude__isnull=True).order_by('municipio', 'comunidade')
     serializer_class = LocalidadeSerializer
     filter_backends = [BoundingBoxFilter, filters.SearchFilter]
     search_fields = ['comunidade', 'municipio', 'uf']
 
 
-# NOVO: ViewSet para os nomes das localidades
 class LocalidadeNomeViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet leve que retorna uma lista simplificada de todas as localidades.
-    Usada para popular os menus de seleção sem sobrecarregar a aplicação.
     A paginação é desativada para garantir que todos os nomes venham de uma vez.
     """
-    queryset = Localidade.objects.all().order_by('comunidade')
+    # ALTERADO: Aplicamos o mesmo filtro aqui para consistência
+    queryset = Localidade.objects.exclude(latitude__isnull=True).exclude(longitude__isnull=True).order_by('comunidade')
     serializer_class = LocalidadeNomeSerializer
-    pagination_class = None # IMPORTANTE: Desativa a paginação
+    pagination_class = None
 
 
 # A view de distância continua a mesma

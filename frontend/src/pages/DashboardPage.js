@@ -71,10 +71,15 @@ function DashboardPage() {
   // REMOVIDO: O useEffect de filtro no lado do cliente foi removido. A lógica agora está no MapComponent.
 
   const handleCalcularDistancia = () => {
-    if (!pontoA || !pontoB) { alert('Selecione duas localidades.'); return; }
+    if (!pontoA || !pontoB) {
+      alert('Selecione duas localidades.');
+      return;
+    }
     setIsLoading(true);
     setDistancia(null);
     setTempoViagem(null);
+    
+    // A chamada axios não muda
     axios.post('http://localhost:8081/api/distancia/', { ponto_a_id: pontoA, ponto_b_id: pontoB })
       .then(response => {
         const dist = response.data.distancia_km;
@@ -82,34 +87,52 @@ function DashboardPage() {
         if (dist && velocidadeMedia > 0) {
           setTempoViagem(formatarTempoViagem(dist / velocidadeMedia));
         }
-        // A lógica de foco no mapa continua a mesma
+
         const localidadeA = todasLocalidades.find(l => l.id === Number(pontoA));
         const localidadeB = todasLocalidades.find(l => l.id === Number(pontoB));
-        if (localidadeA && localidadeB && map) {
+
+        // A verificação de segurança, agora que temos as coordenadas
+        if (localidadeA && localidadeB && localidadeA.latitude && localidadeB.latitude && map) {
+          
+          // NOVO: Limpamos os marcadores de exploração do mapa
+          setLocalidades([]); 
+          
+          // Agora definimos os pontos em foco, que serão os únicos no mapa
           setPontosEmFoco([localidadeA, localidadeB]);
+
           const bounds = L.latLngBounds([
             [localidadeA.latitude, localidadeA.longitude],
             [localidadeB.latitude, localidadeB.longitude]
           ]);
           map.fitBounds(bounds, { padding: [50, 50] });
+        } else {
+          // Caso não encontre as localidades ou as coordenadas, mostramos um alerta
+          alert("Não foi possível encontrar as coordenadas para focar no mapa.");
         }
       })
-      .catch(error => alert('Não foi possível calcular a distância.'))
+      .catch(error => {
+        // O catch agora trata erros de rede ou do back-end
+        console.error("Erro ao calcular distância:", error);
+        alert('Erro no servidor ao calcular a distância.');
+      })
       .finally(() => setIsLoading(false));
   };
-  
+
   const handleClearRota = () => {
     setPontosEmFoco(null);
     setDistancia(null);
     setTempoViagem(null);
+    // IMPORTANTE: Ao limpar a rota, precisamos que o mapa volte a buscar as localidades da área visível.
+    // A forma mais fácil é pedir ao MapComponent para recarregar.
+    // Como não temos um comando direto, podemos simplesmente resetar o mapa.
+    // O MapComponent já tem lógica para buscar dados quando o mapa se move.
     if (map) {
       map.setView([-5.0, -62.0], 6);
     }
   };
 
-  // ALTERADO: A variável que decide o que exibir agora é mais simples
-  // O MapComponent vai cuidar da sua própria lista, mas o foco da rota tem prioridade
-  const pontosParaExibir = pontosEmFoco || localidades;
+  // A variável pontosParaExibir agora tem uma lógica mais explícita
+  const pontosParaExibir = pontosEmFoco ? pontosEmFoco : localidades;
 
   return (
     <Box sx={{ width: '100%', height: 'calc(100vh - 64px)', position: 'relative' }}>

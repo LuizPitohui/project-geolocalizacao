@@ -1,7 +1,6 @@
 // src/components/MapComponent.js
 
 import React, { useEffect, useCallback } from 'react';
-// ALTERADO: Importamos mais hooks do react-leaflet
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -17,18 +16,17 @@ L.Icon.Default.mergeOptions({
 });
 
 
-// NOVO: Componente interno para lidar com os eventos do mapa
 function MapEvents({ setLocalidades, searchFilter }) {
   const map = useMap();
 
-  // NOVO: Função para buscar dados com debounce para não sobrecarregar a API
   const fetchVisibleLocalidades = useCallback(debounce(async (bounds, search) => {
     try {
       const params = {};
-      // Se houver um filtro de busca, ele tem prioridade
       if (search) {
         params.search = search;
-      } else { // Senão, usamos o bounding box
+      } else {
+        // A lógica de usar o IP manual no frontend deve ser ajustada aqui se necessário
+        const ipCorreto = process.env.REACT_APP_API_URL || 'http://localhost:8081';
         params.in_bbox = [
           bounds.getWest(),
           bounds.getSouth(),
@@ -37,10 +35,9 @@ function MapEvents({ setLocalidades, searchFilter }) {
         ].join(',');
       }
       
-      const response = await axios.get('http://localhost:8081/api/localidades/', { params });
-      setLocalidades(response.data.results || response.data); // Suporta respostas paginadas e não paginadas
+      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:8081'}/api/localidades/`, { params });
+      setLocalidades(response.data.results || response.data);
 
-      // Se for uma busca, ajusta o zoom para os resultados
       if (search && response.data.length > 0) {
         const markersBounds = L.latLngBounds(response.data.map(l => [l.latitude, l.longitude]));
         if (markersBounds.isValid()) {
@@ -51,31 +48,26 @@ function MapEvents({ setLocalidades, searchFilter }) {
     } catch (error) {
       console.error("Erro ao buscar localidades visíveis:", error);
     }
-  }, 500), [map, setLocalidades]); // 500ms de debounce
+  }, 500), [map, setLocalidades]);
 
-  // NOVO: Efeito que dispara a busca quando o filtro de texto muda
   useEffect(() => {
-    // Se o filtro de busca estiver ativo, busca por texto.
     if (searchFilter) {
       fetchVisibleLocalidades(null, searchFilter);
     } else {
-      // Senão, busca o que está na tela.
       fetchVisibleLocalidades(map.getBounds(), null);
     }
   }, [searchFilter, fetchVisibleLocalidades, map]);
 
-  // NOVO: Hook que escuta os eventos do mapa (arrastar, zoom)
   useMapEvents({
     dragend: () => fetchVisibleLocalidades(map.getBounds(), searchFilter),
     zoomend: () => fetchVisibleLocalidades(map.getBounds(), searchFilter),
   });
 
-  return null; // Este componente não renderiza nada visualmente
+  return null;
 }
 
-// ALTERADO: O componente agora recebe um filtro de busca e gerencia seu próprio estado de localidades
 function MapComponent({ setMapInstance, pontosEmFoco, setLocalidades, localidades, searchFilter }) {
-  const initialPosition = [-5.0, -62.0];
+  const initialPosition = [-5.0, -62.0]; // Posição em Manaus
 
   return (
     <MapContainer 
@@ -89,11 +81,12 @@ function MapComponent({ setMapInstance, pontosEmFoco, setLocalidades, localidade
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
 
-      {/* NOVO: Passamos a função de atualizar o estado e o filtro para o componente de eventos */}
       <MapEvents setLocalidades={setLocalidades} searchFilter={searchFilter} />
 
-      {/* A lógica de renderizar os marcadores continua a mesma, mas agora com dados dinâmicos */}
-      {localidades.map(localidade => (
+      {/* ALTERADO: Adicionamos este filtro para garantir que o mapa nunca tente renderizar uma localidade sem coordenadas. */}
+      {localidades
+        .filter(localidade => localidade.latitude != null && localidade.longitude != null)
+        .map(localidade => (
         <Marker 
           key={localidade.id} 
           position={[localidade.latitude, localidade.longitude]}
@@ -115,8 +108,8 @@ function MapComponent({ setMapInstance, pontosEmFoco, setLocalidades, localidade
         </Marker>
       ))}
 
-      {/* A lógica da linha de distância não muda */}
-      {pontosEmFoco && pontosEmFoco.length === 2 && (
+      {/* A lógica da linha de distância não muda, mas adicionamos um filtro de segurança */}
+      {pontosEmFoco && pontosEmFoco.length === 2 && pontosEmFoco.every(p => p.latitude != null && p.longitude != null) && (
         <Polyline 
           positions={[
             [pontosEmFoco[0].latitude, pontosEmFoco[0].longitude],
