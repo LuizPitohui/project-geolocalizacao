@@ -1,127 +1,130 @@
-// src/components/MapComponent.js
+// frontend/src/components/MapComponent.js
 
-import React, { useEffect, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
+import React, { useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import axios from 'axios';
-import { debounce } from 'lodash';
 
-// O código do ícone continua o mesmo
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-  iconUrl: require('leaflet/dist/images/marker-icon.png'),
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+// --- Correção para o ícone padrão do Leaflet ---
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconAnchor: [12, 41]
 });
+L.Marker.prototype.options.icon = DefaultIcon;
+// --- Fim da correção do ícone ---
 
 
-function MapEvents({ setLocalidades, searchFilter }) {
+function MapController({ localities, routePoints }) {
   const map = useMap();
 
-  const fetchVisibleLocalidades = useCallback(debounce(async (bounds, search) => {
-    try {
-      const params = {};
-      if (search) {
-        params.search = search;
-      } else {
-        // A lógica de usar o IP manual no frontend deve ser ajustada aqui se necessário
-        const ipCorreto = process.env.REACT_APP_API_URL || 'http://localhost:8081';
-        params.in_bbox = [
-          bounds.getWest(),
-          bounds.getSouth(),
-          bounds.getEast(),
-          bounds.getNorth()
-        ].join(',');
-      }
-      
-      const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:8081'}/api/localidades/`, { params });
-      setLocalidades(response.data.results || response.data);
-
-      if (search && response.data.length > 0) {
-        const markersBounds = L.latLngBounds(response.data.map(l => [l.latitude, l.longitude]));
-        if (markersBounds.isValid()) {
-            map.fitBounds(markersBounds, { padding: [50, 50] });
-        }
-      }
-
-    } catch (error) {
-      console.error("Erro ao buscar localidades visíveis:", error);
-    }
-  }, 500), [map, setLocalidades]);
-
   useEffect(() => {
-    if (searchFilter) {
-      fetchVisibleLocalidades(null, searchFilter);
+    // Se temos pontos de rota (A e B), foca neles.
+    if (routePoints?.pontoA && routePoints?.pontoB) {
+      const bounds = L.latLngBounds([
+        [routePoints.pontoA.latitude, routePoints.pontoA.longitude],
+        [routePoints.pontoB.latitude, routePoints.pontoB.longitude]
+      ]);
+      map.fitBounds(bounds, { padding: [50, 50] }); 
+    
+    // Se temos uma lista de localidades filtradas, foca em todas elas.
+    } else if (localities && localities.length > 0) {
+      const bounds = L.latLngBounds(localities.map(loc => [
+        loc.geometry.coordinates[1], // Latitude
+        loc.geometry.coordinates[0]  // Longitude
+      ]));
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+      } else {
+        // Se bounds não for válido (ex: apenas um ponto), apenas centraliza nele.
+        map.setView([localities[0].geometry.coordinates[1], localities[0].geometry.coordinates[0]], 10);
+      }
     } else {
-      fetchVisibleLocalidades(map.getBounds(), null);
+      // Se não há dados, centraliza na visão geral do Amazonas.
+      map.setView([-4.5, -63], 5);
     }
-  }, [searchFilter, fetchVisibleLocalidades, map]);
-
-  useMapEvents({
-    dragend: () => fetchVisibleLocalidades(map.getBounds(), searchFilter),
-    zoomend: () => fetchVisibleLocalidades(map.getBounds(), searchFilter),
-  });
+  }, [localities, routePoints, map]); 
 
   return null;
 }
 
-function MapComponent({ setMapInstance, pontosEmFoco, setLocalidades, localidades, searchFilter }) {
-  const initialPosition = [-5.0, -62.0]; // Posição em Manaus
+const MapComponent = ({ localidades = [], routePoints = {}, routeResult = null }) => {
+  const initialPosition = [-4.5, -63];
+  const isRouteMode = routePoints.pontoA && routePoints.pontoB;
 
   return (
-    <MapContainer 
-      ref={setMapInstance}
-      center={initialPosition} 
-      zoom={6} 
-      style={{ height: '100%', width: '100%' }}
-    >
+    <MapContainer center={initialPosition} zoom={5} style={{ height: '100%', width: '100%' }}>
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
 
-      <MapEvents setLocalidades={setLocalidades} searchFilter={searchFilter} />
+      <MapController localities={localidades} routePoints={routePoints} />
 
-      {/* ALTERADO: Adicionamos este filtro para garantir que o mapa nunca tente renderizar uma localidade sem coordenadas. */}
-      {localidades
-        .filter(localidade => localidade.latitude != null && localidade.longitude != null)
-        .map(localidade => (
-        <Marker 
-          key={localidade.id} 
-          position={[localidade.latitude, localidade.longitude]}
-        >
-          <Popup>
-            <div style={{ lineHeight: '2' }}>
-              <strong>ID:</strong> {localidade.id}<br />
-              <strong>Comunidade:</strong> {localidade.comunidade}<br />
-              <strong>Município:</strong> {localidade.municipio} - {localidade.uf}<br />
-              <strong>IBGE:</strong> {localidade.ibge}<br />
-              <strong>Tipo:</strong> {localidade.tipo_comunidade}<br />
-              <strong>Domicílios:</strong> {localidade.domicilios}<br />
-              <strong>Total de Ligações:</strong> {localidade.total_ligacoes}<br />
-              <hr style={{margin: '5px 0', border: 'none', borderTop: '1px solid #ddd'}}/>
-              <strong>Latitude:</strong> {localidade.latitude}<br />
-              <strong>Longitude:</strong> {localidade.longitude}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+      {isRouteMode ? (
+        <>
+          <Marker position={[routePoints.pontoA.latitude, routePoints.pontoA.longitude]}>
+            <Popup autoOpen>
+                <b>Ponto A: {routePoints.pontoA.nome_comunidade}</b><br/>
+                <b>Município:</b> {routePoints.pontoA.municipio}<br/>
+                <b>Fonte:</b> {routePoints.pontoA.fonte_dados}<br/>
+                <b>Calha:</b> {routePoints.pontoA.calha_rio || 'Não definida'}<br/>
+                <b>Domicílios/UCs:</b> {routePoints.pontoA.domicilios || 'N/A'}<br/>
+                <b>Total de Ligações:</b> {routePoints.pontoA.total_ligacoes || 'N/A'}
+            </Popup>
+          </Marker>
+          <Marker position={[routePoints.pontoB.latitude, routePoints.pontoB.longitude]}>
+             <Popup autoOpen>
+                <b>Ponto B: {routePoints.pontoB.nome_comunidade}</b><br/>
+                <b>Município:</b> {routePoints.pontoB.municipio}<br/>
+                <b>Fonte:</b> {routePoints.pontoB.fonte_dados}<br/>
+                <b>Calha:</b> {routePoints.pontoB.calha_rio || 'Não definida'}<br/>
+                <b>Domicílios/UCs:</b> {routePoints.pontoB.domicilios || 'N/A'}<br/>
+                <b>Total de Ligações:</b> {routePoints.pontoB.total_ligacoes || 'N/A'}
+            </Popup>
+          </Marker>
+          <Polyline 
+            positions={[
+              [routePoints.pontoA.latitude, routePoints.pontoA.longitude],
+              [routePoints.pontoB.latitude, routePoints.pontoB.longitude]
+            ]} 
+            color="red"
+          >
+            {routeResult && (
+              <Popup>
+                <b>Distância:</b> {routeResult.distancia} km<br />
+                <b>Velocidade Média:</b> {routeResult.velocidade} km/h<br />
+                <b>Tempo Estimado:</b> {routeResult.tempo}
+              </Popup>
+            )}
+          </Polyline>
+        </>
+      ) : (
+        localidades.map(localidade => {
+          const { properties, geometry } = localidade;
+          const [lng, lat] = geometry.coordinates;
 
-      {/* A lógica da linha de distância não muda, mas adicionamos um filtro de segurança */}
-      {pontosEmFoco && pontosEmFoco.length === 2 && pontosEmFoco.every(p => p.latitude != null && p.longitude != null) && (
-        <Polyline 
-          positions={[
-            [pontosEmFoco[0].latitude, pontosEmFoco[0].longitude],
-            [pontosEmFoco[1].latitude, pontosEmFoco[1].longitude],
-          ]}
-          color="blue" 
-          weight={3} 
-          opacity={0.7}
-        />
+          return (
+            <Marker key={properties.id} position={[lat, lng]}>
+              <Popup>
+                <b>ID:</b> {properties.id}<br/>
+                <b>Comunidade:</b> {properties.nome_comunidade}<br/>
+                <b>Município:</b> {properties.municipio}<br/>
+                <b>UF:</b> {properties.uf}<br/>
+                <b>Fonte:</b> {properties.fonte_dados}<br/>
+                <b>Calha:</b> {properties.calha_rio || 'Não definida'}<br/>
+                <b>Domicílios/UCs:</b> {properties.domicilios || 'N/A'}<br/>
+                <b>Total de Ligações:</b> {properties.total_ligacoes || 'N/A'}
+              </Popup>
+            </Marker>
+          );
+        })
       )}
     </MapContainer>
   );
-}
+};
 
 export default MapComponent;

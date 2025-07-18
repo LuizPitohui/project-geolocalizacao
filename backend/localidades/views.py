@@ -1,71 +1,38 @@
-# localidades/views.py
+# backend/localidades/views.py
 
-from django.shortcuts import render
 from rest_framework import viewsets, filters
-from .models import Localidade
-from .serializers import LocalidadeSerializer, LocalidadeNomeSerializer
-from geopy.distance import geodesic
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from .filters import BoundingBoxFilter
-
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import Localidade, CalhaRio
+from .serializers import LocalidadeSerializer, CalhaRioSerializer
 
 class LocalidadeViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet para o mapa, agora filtrando localidades sem coordenadas.
+    ViewSet para listar e recuperar Localidades.
+    Este endpoint é somente para leitura (não permite criar ou apagar via API).
     """
-    # ALTERADO: Excluímos localidades com coordenadas nulas para evitar erros
-    queryset = Localidade.objects.exclude(latitude__isnull=True).exclude(longitude__isnull=True).order_by('municipio', 'comunidade')
+    # Define a consulta base, pegando todas as localidades que têm coordenadas.
+    queryset = Localidade.objects.exclude(latitude__isnull=True).exclude(longitude__isnull=True).order_by('municipio', 'nome_comunidade')
+    
+    # Usa o serializador que definimos para formatar a saída.
     serializer_class = LocalidadeSerializer
-    filter_backends = [BoundingBoxFilter, filters.SearchFilter]
-    search_fields = ['comunidade', 'municipio', 'uf']
+    
+    # Define os mecanismos de filtro que a API irá suportar.
+    filter_backends = [
+        DjangoFilterBackend, # Filtro por campos exatos
+        filters.SearchFilter, # Filtro de busca textual
+    ]
+    
+    # Campos que podem ser usados para filtrar, ex: /api/localidades/?fonte_dados=Convencional
+    filterset_fields = ['fonte_dados', 'municipio', 'calha_rio']
+    
+    # Campos onde a busca textual (ex: /api/localidades/?search=tapaua) será aplicada.
+    # Corrigimos 'comunidade' para 'nome_comunidade'.
+    search_fields = ['nome_comunidade', 'municipio']
 
-
-class LocalidadeNomeViewSet(viewsets.ReadOnlyModelViewSet):
+class CalhaRioViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet leve que retorna uma lista simplificada de todas as localidades.
-    A paginação é desativada para garantir que todos os nomes venham de uma vez.
+    ViewSet para listar todas as Calhas de Rio.
+    Útil para popular o dropdown de filtros no frontend.
     """
-    # ALTERADO: Aplicamos o mesmo filtro aqui para consistência
-    queryset = Localidade.objects.exclude(latitude__isnull=True).exclude(longitude__isnull=True).order_by('comunidade')
-    serializer_class = LocalidadeNomeSerializer
-    pagination_class = None
-
-
-# A view de distância continua a mesma
-@api_view(['POST'])
-def calcular_distancia_view(request):
-    ponto_a_id = request.data.get('ponto_a_id')
-    ponto_b_id = request.data.get('ponto_b_id')
-
-    if not ponto_a_id or not ponto_b_id:
-        return Response(
-            {"error": "É necessário fornecer os IDs de ambos os pontos."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    try:
-        ponto_a = Localidade.objects.get(pk=ponto_a_id)
-        ponto_b = Localidade.objects.get(pk=ponto_b_id)
-
-        coords_a = (ponto_a.latitude, ponto_a.longitude)
-        coords_b = (ponto_b.latitude, ponto_b.longitude)
-        
-        if not all(coords_a) or not all(coords_b):
-                return Response(
-                    {"error": "Uma ou ambas as localidades não possuem coordenadas válidas."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        distancia_km = geodesic(coords_a, coords_b).km
-
-        return Response({"distancia_km": round(distancia_km, 2)})
-
-    except Localidade.DoesNotExist:
-        return Response(
-            {"error": "Uma ou ambas as localidades não foram encontradas."},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    queryset = CalhaRio.objects.all().order_by('nome')
+    serializer_class = CalhaRioSerializer

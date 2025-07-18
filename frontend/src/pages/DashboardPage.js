@@ -1,179 +1,126 @@
-// src/pages/DashboardPage.js
+// frontend/src/pages/DashboardPage.js
 
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { Box, Drawer, Fab, Tooltip } from '@mui/material';
-import FilterListIcon from '@mui/icons-material/FilterList';
+import { Grid, Paper } from '@mui/material';
 import MapComponent from '../components/MapComponent';
 import FilterPanel from '../components/FilterPanel';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-import { debounce } from 'lodash';
+import api from '../services/api';
 
-// A função de formatar tempo continua a mesma
-function formatarTempoViagem(horas) {
-    if (horas === null || horas < 0) return '';
-    const dias = Math.floor(horas / 24);
-    const horasRestantes = Math.floor(horas % 24);
-    const minutos = Math.round((horas * 60) % 60);
-    let resultado = '';
-    if (dias > 0) resultado += `${dias} dia(s) `;
-    if (horasRestantes > 0) resultado += `${horasRestantes} hora(s) `;
-    if (minutos > 0) resultado += `${minutos} minuto(s)`;
-    return resultado.trim();
-}
-
+// Componente principal que organiza a página do dashboard
 function DashboardPage() {
-  const [map, setMap] = useState(null);
-  const [pontosEmFoco, setPontosEmFoco] = useState(null);
+  // Estado para armazenar a lista de calhas de rios vinda da API
+  const [calhas, setCalhas] = useState([]);
   
-  // ALTERADO: Este estado agora guarda apenas as localidades VISÍVEIS no mapa
+  // Estado para armazenar as localidades a serem exibidas no mapa
   const [localidades, setLocalidades] = useState([]);
-  
-  // ALTERADO: Este estado continua guardando a lista de NOMES para os filtros
-  const [todasLocalidades, setTodasLocalidades] = useState([]);
-  
-  const [filtro, setFiltro] = useState('');
-  const [debouncedFiltro, setDebouncedFiltro] = useState('');
 
-  const [pontoA, setPontoA] = useState('');
-  const [pontoB, setPontoB] = useState('');
-  const [distancia, setDistancia] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [velocidadeMedia, setVelocidadeMedia] = useState(60);
-  const [tempoViagem, setTempoViagem] = useState(null);
-  const [isPanelVisible, setIsPanelVisible] = useState(false);
+  // Estado que guarda os valores atuais dos filtros
+  const [filters, setFilters] = useState({
+    fonte_dados: '', // '3ª Tranche' ou 'Convencional'
+    calha_rio: ''    // ID da calha selecionada
+  });
 
-  // ALTERADO: Este useEffect agora busca apenas os NOMES das localidades
+  // Estado para os pontos do cálculo de rota
+  const [routePoints, setRoutePoints] = useState({
+    pontoA: null,
+    pontoB: null
+  });
+
+  // Estado para o resultado do cálculo de distância
+  const [routeResult, setRouteResult] = useState(null);
+
+  // Busca a lista de calhas de rios uma vez, quando o componente é montado
   useEffect(() => {
-    const fetchLocalidadeNomes = async () => {
+    const fetchCalhas = async () => {
       try {
-        // Usamos o novo endpoint super leve
-        const response = await axios.get('http://localhost:8081/api/localidades-nomes/');
-        setTodasLocalidades(response.data); // A resposta não é paginada
+        const response = await api.get('/calhas/');
+        setCalhas(response.data); 
       } catch (error) {
-        console.error("Não foi possível carregar a lista de nomes de localidades.", error);
+        console.error("Erro ao buscar calhas:", error);
       }
     };
-    fetchLocalidadeNomes();
-  }, []);
+    fetchCalhas();
+  }, []); // O array vazio [] garante que rode apenas na montagem
 
-  // NOVO: Efeito para aplicar debounce na busca por texto
-  const debouncedSetFiltro = useCallback(debounce((value) => {
-    setDebouncedFiltro(value);
-  }, 500), []); // 500ms de espera
-
-  useEffect(() => {
-    debouncedSetFiltro(filtro);
-  }, [filtro, debouncedSetFiltro]);
-
-
-  // REMOVIDO: O useEffect de filtro no lado do cliente foi removido. A lógica agora está no MapComponent.
-
-  const handleCalcularDistancia = () => {
-    if (!pontoA || !pontoB) {
-      alert('Selecione duas localidades.');
+  // Função para buscar localidades da API com base nos filtros
+  const fetchLocalidades = useCallback(async () => {
+    // A busca só é feita se uma fonte de dados for selecionada
+    if (!filters.fonte_dados) {
+      setLocalidades([]); // Garante que o mapa fique vazio sem filtro
       return;
     }
-    setIsLoading(true);
-    setDistancia(null);
-    setTempoViagem(null);
-    
-    // A chamada axios não muda
-    axios.post('http://localhost:8081/api/distancia/', { ponto_a_id: pontoA, ponto_b_id: pontoB })
-      .then(response => {
-        const dist = response.data.distancia_km;
-        setDistancia(dist);
-        if (dist && velocidadeMedia > 0) {
-          setTempoViagem(formatarTempoViagem(dist / velocidadeMedia));
-        }
 
-        const localidadeA = todasLocalidades.find(l => l.id === Number(pontoA));
-        const localidadeB = todasLocalidades.find(l => l.id === Number(pontoB));
-
-        // A verificação de segurança, agora que temos as coordenadas
-        if (localidadeA && localidadeB && localidadeA.latitude && localidadeB.latitude && map) {
-          
-          // NOVO: Limpamos os marcadores de exploração do mapa
-          setLocalidades([]); 
-          
-          // Agora definimos os pontos em foco, que serão os únicos no mapa
-          setPontosEmFoco([localidadeA, localidadeB]);
-
-          const bounds = L.latLngBounds([
-            [localidadeA.latitude, localidadeA.longitude],
-            [localidadeB.latitude, localidadeB.longitude]
-          ]);
-          map.fitBounds(bounds, { padding: [50, 50] });
-        } else {
-          // Caso não encontre as localidades ou as coordenadas, mostramos um alerta
-          alert("Não foi possível encontrar as coordenadas para focar no mapa.");
-        }
-      })
-      .catch(error => {
-        // O catch agora trata erros de rede ou do back-end
-        console.error("Erro ao calcular distância:", error);
-        alert('Erro no servidor ao calcular a distância.');
-      })
-      .finally(() => setIsLoading(false));
-  };
-
-  const handleClearRota = () => {
-    setPontosEmFoco(null);
-    setDistancia(null);
-    setTempoViagem(null);
-    // IMPORTANTE: Ao limpar a rota, precisamos que o mapa volte a buscar as localidades da área visível.
-    // A forma mais fácil é pedir ao MapComponent para recarregar.
-    // Como não temos um comando direto, podemos simplesmente resetar o mapa.
-    // O MapComponent já tem lógica para buscar dados quando o mapa se move.
-    if (map) {
-      map.setView([-5.0, -62.0], 6);
+    try {
+      const params = new URLSearchParams();
+      params.append('fonte_dados', filters.fonte_dados);
+      if (filters.calha_rio) {
+        params.append('calha_rio', filters.calha_rio);
+      }
+      
+      // Aumentamos o limite para garantir que todos os dados sejam retornados
+      const response = await api.get(`/localidades/?limit=2000&${params.toString()}`);
+      setLocalidades(response.data.features || []);
+    } catch (error) {
+      console.error("Erro ao buscar localidades:", error);
+      setLocalidades([]);
     }
+  }, [filters]); // A função será recriada se o estado 'filters' mudar
+
+  // Este efeito "escuta" por mudanças nos filtros e chama a função de busca
+  useEffect(() => {
+    // Quando o filtro muda, limpamos qualquer rota que estivesse sendo exibida
+    setRoutePoints({ pontoA: null, pontoB: null });
+    setRouteResult(null);
+    fetchLocalidades();
+  }, [fetchLocalidades]); // A dependência é a função `fetchLocalidades`
+
+  // Função para atualizar o estado dos filtros, chamada pelo FilterPanel
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
   };
 
-  // A variável pontosParaExibir agora tem uma lógica mais explícita
-  const pontosParaExibir = pontosEmFoco ? pontosEmFoco : localidades;
+  // Função para lidar com o cálculo de rota
+  const handleCalculateRoute = (pontoA, pontoB, result) => {
+    setLocalidades([]); // Limpa as localidades filtradas para focar na rota
+    setRoutePoints({ pontoA, pontoB });
+    setRouteResult(result);
+  };
+  
+  // Função para limpar tudo e voltar ao estado inicial
+  const handleClearFilters = () => {
+    setFilters({ fonte_dados: '', calha_rio: '' });
+    setRoutePoints({ pontoA: null, pontoB: null });
+    setRouteResult(null);
+    setLocalidades([]); 
+  };
 
   return (
-    <Box sx={{ width: '100%', height: 'calc(100vh - 64px)', position: 'relative' }}>
-      <MapComponent 
-        // ALTERADO: Passamos as props necessárias para a nova lógica
-        localidades={pontosParaExibir} 
-        setLocalidades={setLocalidades}
-        setMapInstance={setMap}
-        pontosEmFoco={pontosEmFoco}
-        searchFilter={debouncedFiltro} // O filtro com debounce
-      />
-      <Tooltip title="Abrir Filtros">
-        <Fab 
-          color="primary"
-          sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1000 }}
-          onClick={() => setIsPanelVisible(true)}
-        >
-          <FilterListIcon />
-        </Fab>
-      </Tooltip>
-      <Drawer
-        anchor="right"
-        open={isPanelVisible}
-        onClose={() => setIsPanelVisible(false)}
-      >
-        <FilterPanel 
-          filtro={filtro}
-          setFiltro={setFiltro}
-          todasLocalidades={todasLocalidades} // A lista leve de nomes continua aqui
-          setPontoA={setPontoA}
-          setPontoB={setPontoB}
-          velocidadeMedia={velocidadeMedia}
-          setVelocidadeMedia={setVelocidadeMedia}
-          handleCalcularDistancia={handleCalcularDistancia}
-          isLoading={isLoading}
-          distancia={distancia}
-          tempoViagem={tempoViagem}
-          handleClearRota={handleClearRota}
-        />
-      </Drawer>
-    </Box>
+    <Grid container spacing={2} style={{ padding: '20px', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+      {/* Coluna para o Painel de Filtros */}
+      <Grid item xs={12} md={4} style={{ height: '100%', overflowY: 'auto' }}>
+        <Paper elevation={3} style={{ padding: '15px' }}>
+          <h2>Filtros e Análise</h2>
+          <FilterPanel
+            calhas={calhas}
+            onFilterChange={handleFilterChange}
+            onCalculateRoute={handleCalculateRoute}
+            onClearFilters={handleClearFilters}
+            currentFilters={filters}
+          />
+        </Paper>
+      </Grid>
+
+      {/* Coluna para o Mapa */}
+      <Grid item xs={12} md={8} style={{ height: '100%' }}>
+        <Paper elevation={3} style={{ height: 'calc(100% - 16px)' }}>
+          <MapComponent 
+            localidades={localidades} 
+            routePoints={routePoints}
+            routeResult={routeResult}
+          />
+        </Paper>
+      </Grid>
+    </Grid>
   );
 }
 

@@ -33,28 +33,30 @@ ALLOWED_HOSTS = []
 # config/settings.py
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',# Apps de terceiros
-    'localidades.apps.LocalidadesConfig',
-    'corsheaders',  # CORS headers
+    'django.contrib.admin', # admin interface
+    'django.contrib.auth', # Para autenticação de usuários
+    'django.contrib.contenttypes', # Para gerenciar tipos de conteúdo
+    'django.contrib.sessions', # Para gerenciar sessões de usuários
+    'django.contrib.messages', # Para mensagens de feedback ao usuário
+    'django.contrib.staticfiles', # Para arquivos estáticos como CSS e JS
+    'rest_framework', # Django REST Framework para construir APIs
+    # Apps de terceiros
+    'django_filters',  # Para filtros avançados na API
+    'corsheaders',  # Para permitir CORS
+    'localidades.apps.LocalidadesConfig', # Nosso app de localidades
 ]
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # CORS middleware
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.security.SecurityMiddleware', # Segurança básica
+    'django.contrib.sessions.middleware.SessionMiddleware', # Middleware para gerenciar sessões
+    'django.middleware.common.CommonMiddleware', # Middleware comum para funcionalidades básicas
+    'django.middleware.csrf.CsrfViewMiddleware', # Proteção contra CSRF
+    'django.contrib.auth.middleware.AuthenticationMiddleware', # Middleware para autenticação de usuários
+    'django.contrib.messages.middleware.MessageMiddleware', # Middleware para mensagens de feedback
+    'django.middleware.clickjacking.XFrameOptionsMiddleware', # Proteção contra clickjacking
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = 'config.urls' 
 
 TEMPLATES = [
     {
