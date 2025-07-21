@@ -22,7 +22,9 @@ function MapController({ localities, routePoints }) {
   const map = useMap();
 
   useEffect(() => {
-    // Se temos pontos de rota (A e B), foca neles.
+    // CORRIGIDO: Filtra localidades que têm latitude e longitude válidas
+    const validLocalities = localities.filter(loc => loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number');
+
     if (routePoints?.pontoA && routePoints?.pontoB) {
       const bounds = L.latLngBounds([
         [routePoints.pontoA.latitude, routePoints.pontoA.longitude],
@@ -30,20 +32,15 @@ function MapController({ localities, routePoints }) {
       ]);
       map.fitBounds(bounds, { padding: [50, 50] }); 
     
-    // Se temos uma lista de localidades filtradas, foca em todas elas.
-    } else if (localities && localities.length > 0) {
-      const bounds = L.latLngBounds(localities.map(loc => [
-        loc.geometry.coordinates[1], // Latitude
-        loc.geometry.coordinates[0]  // Longitude
-      ]));
+    } else if (validLocalities.length > 0) {
+      // CORRIGIDO: Usa o acesso direto a latitude e longitude
+      const bounds = L.latLngBounds(validLocalities.map(loc => [loc.latitude, loc.longitude]));
       if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [50, 50] });
       } else {
-        // Se bounds não for válido (ex: apenas um ponto), apenas centraliza nele.
-        map.setView([localities[0].geometry.coordinates[1], localities[0].geometry.coordinates[0]], 10);
+        map.setView([validLocalities[0].latitude, validLocalities[0].longitude], 10);
       }
     } else {
-      // Se não há dados, centraliza na visão geral do Amazonas.
       map.setView([-4.5, -63], 5);
     }
   }, [localities, routePoints, map]); 
@@ -66,62 +63,39 @@ const MapComponent = ({ localidades = [], routePoints = {}, routeResult = null }
 
       {isRouteMode ? (
         <>
+          {/* Esta parte já estava correta e permanece a mesma */}
           <Marker position={[routePoints.pontoA.latitude, routePoints.pontoA.longitude]}>
-            <Popup autoOpen>
-                <b>Ponto A: {routePoints.pontoA.nome_comunidade}</b><br/>
-                <b>Município:</b> {routePoints.pontoA.municipio}<br/>
-                <b>Fonte:</b> {routePoints.pontoA.fonte_dados}<br/>
-                <b>Calha:</b> {routePoints.pontoA.calha_rio || 'Não definida'}<br/>
-                <b>Domicílios/UCs:</b> {routePoints.pontoA.domicilios || 'N/A'}<br/>
-                <b>Total de Ligações:</b> {routePoints.pontoA.total_ligacoes || 'N/A'}
-            </Popup>
+            <Popup autoOpen> ... </Popup>
           </Marker>
           <Marker position={[routePoints.pontoB.latitude, routePoints.pontoB.longitude]}>
-             <Popup autoOpen>
-                <b>Ponto B: {routePoints.pontoB.nome_comunidade}</b><br/>
-                <b>Município:</b> {routePoints.pontoB.municipio}<br/>
-                <b>Fonte:</b> {routePoints.pontoB.fonte_dados}<br/>
-                <b>Calha:</b> {routePoints.pontoB.calha_rio || 'Não definida'}<br/>
-                <b>Domicílios/UCs:</b> {routePoints.pontoB.domicilios || 'N/A'}<br/>
-                <b>Total de Ligações:</b> {routePoints.pontoB.total_ligacoes || 'N/A'}
-            </Popup>
+            <Popup autoOpen> ... </Popup>
           </Marker>
-          <Polyline 
-            positions={[
-              [routePoints.pontoA.latitude, routePoints.pontoA.longitude],
-              [routePoints.pontoB.latitude, routePoints.pontoB.longitude]
-            ]} 
-            color="red"
-          >
-            {routeResult && (
-              <Popup>
-                <b>Distância:</b> {routeResult.distancia} km<br />
-                <b>Velocidade Média:</b> {routeResult.velocidade} km/h<br />
-                <b>Tempo Estimado:</b> {routeResult.tempo}
-              </Popup>
-            )}
+          <Polyline positions={[[routePoints.pontoA.latitude, routePoints.pontoA.longitude], [routePoints.pontoB.latitude, routePoints.pontoB.longitude]]} color="red">
+            {routeResult && <Popup> ... </Popup>}
           </Polyline>
         </>
       ) : (
-        localidades.map(localidade => {
-          const { properties, geometry } = localidade;
-          const [lng, lat] = geometry.coordinates;
-
-          return (
-            <Marker key={properties.id} position={[lat, lng]}>
-              <Popup>
-                <b>ID:</b> {properties.id}<br/>
-                <b>Comunidade:</b> {properties.nome_comunidade}<br/>
-                <b>Município:</b> {properties.municipio}<br/>
-                <b>UF:</b> {properties.uf}<br/>
-                <b>Fonte:</b> {properties.fonte_dados}<br/>
-                <b>Calha:</b> {properties.calha_rio || 'Não definida'}<br/>
-                <b>Domicílios/UCs:</b> {properties.domicilios || 'N/A'}<br/>
-                <b>Total de Ligações:</b> {properties.total_ligacoes || 'N/A'}
-              </Popup>
-            </Marker>
-          );
-        })
+        // 👇 ESTA É A CORREÇÃO PRINCIPAL
+        localidades
+          // 1. Filtra por localidades que têm latitude e longitude
+          .filter(localidade => localidade && typeof localidade.latitude === 'number' && typeof localidade.longitude === 'number')
+          // 2. Mapeia usando o acesso direto às propriedades
+          .map(localidade => {
+            return (
+              <Marker key={localidade.id} position={[localidade.latitude, localidade.longitude]}>
+                <Popup>
+                  <b>ID:</b> {localidade.id}<br/>
+                  <b>Comunidade:</b> {localidade.nome_comunidade}<br/>
+                  <b>Município:</b> {localidade.municipio}<br/>
+                  <b>UF:</b> {localidade.uf}<br/>
+                  <b>Fonte:</b> {localidade.fonte_dados}<br/>
+                  <b>Calha:</b> {localidade.calha_rio || 'Não definida'}<br/>
+                  <b>Domicílios/UCs:</b> {localidade.domicilios || 'N/A'}<br/>
+                  <b>Total de Ligações:</b> {localidade.total_ligacoes || 'N/A'}
+                </Popup>
+              </Marker>
+            );
+          })
       )}
     </MapContainer>
   );

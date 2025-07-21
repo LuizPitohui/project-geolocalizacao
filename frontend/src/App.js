@@ -3,7 +3,7 @@ import React, { useContext } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 import AuthContext, { AuthProvider } from './context/AuthContext';
-
+import 'leaflet/dist/leaflet.css';
 import Navbar from './layout/Navbar';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';

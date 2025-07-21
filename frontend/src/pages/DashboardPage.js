@@ -1,7 +1,7 @@
 // frontend/src/pages/DashboardPage.js
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Grid, Paper } from '@mui/material';
+import { Box, Paper } from '@mui/material';
 import MapComponent from '../components/MapComponent';
 import FilterPanelSimple from '../components/FilterPanelSimple';
 import api from '../services/api';
@@ -59,7 +59,8 @@ function DashboardPage() {
       
       // Aumentamos o limite para garantir que todos os dados sejam retornados
       const response = await api.get(`/localidades/?limit=2000&${params.toString()}`);
-      setLocalidades(response.data.features || []);
+      console.log('Dados recebidos da API:', response.data);
+      setLocalidades(response.data || []);
     } catch (error) {
       console.error("Erro ao buscar localidades:", error);
       setLocalidades([]);
@@ -95,34 +96,43 @@ function DashboardPage() {
   };
 
   return (
-    <Grid container spacing={2} style={{ padding: '20px', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
-      {/* Coluna para o Painel de Filtros */}
-      <Grid item xs={12} md={4} style={{ height: '100%', overflowY: 'auto' }}>
-        <Paper elevation={3} style={{ padding: '15px' }}>
-          <h2>Filtros e Análise</h2>
-          <FilterPanelSimple
-            calhas={calhas}
-            onFilterChange={handleFilterChange}
-            onCalculateRoute={handleCalculateRoute}
-            onClearFilters={handleClearFilters}
-            currentFilters={filters}
-          />
-        </Paper>
-      </Grid>
+    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', padding: 2 }}>
+      {/* --- Coluna da Esquerda (Filtros) --- */}
+      <Paper 
+        elevation={3} 
+        sx={{ 
+          width: '400px', // Largura fixa para o painel
+          padding: 2, 
+          marginRight: 2,
+          overflowY: 'auto' // Barra de rolagem se o conteúdo for grande
+        }}
+      >
+        <h2>Filtros e Análise</h2>
+        <FilterPanelSimple
+          calhas={calhas}
+          onFilterChange={handleFilterChange}
+          onCalculateRoute={handleCalculateRoute}
+          onClearFilters={handleClearFilters}
+          currentFilters={filters}
+        />
+      </Paper>
 
-      {/* Coluna para o Mapa */}
-      <Grid item xs={12} md={8} style={{ height: '100%' }}>
-        <Paper elevation={3} className="map-paper" style={{ height: 'calc(100% - 16px)' }}>
-          <div className="map-container">
-            <MapComponent 
-              localidades={localidades} 
-              routePoints={routePoints}
-              routeResult={routeResult}
-            />
-          </div>
-        </Paper>
-      </Grid>
-    </Grid>
+      {/* --- Coluna da Direita (Mapa) --- */}
+      <Paper 
+        elevation={3}
+        sx={{ 
+          flex: 1, // Faz o mapa ocupar todo o espaço restante
+          width: '100%',
+          height: '100%'
+        }}
+      >
+        <MapComponent 
+          localidades={localidades} 
+          routePoints={routePoints}
+          routeResult={routeResult}
+        />
+      </Paper>
+    </Box>
   );
 }
 

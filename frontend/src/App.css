@@ -1,3 +1,5 @@
+/* frontend/src/App.css */
+
 .App {
   text-align: center;
 }
@@ -32,38 +34,17 @@
   }
 }
 
-/* CSS para corrigir o layout do mapa */
+/* A única regra essencial para o React-Leaflet é garantir 
+  que o container do mapa tenha uma altura. No entanto, a melhor
+  prática é definir essa altura no elemento pai dentro do seu 
+  componente React (como fizemos no DashboardPage.js), 
+  em vez de forçá-la aqui com !important.
+
+  Se, por alguma razão, o mapa ainda não aparecer, você
+  pode usar esta regra como um último recurso, mas o ideal
+  é que ela não seja necessária com o layout do Material-UI corrigido.
+*/
 .leaflet-container {
-  height: 100% !important;
-  width: 100% !important;
-  z-index: 1;
+  width: 100%;
+  height: 100%;
 }
-
-/* Garantir que o container do mapa tenha altura definida */
-.map-container {
-  height: calc(100vh - 120px) !important;
-  min-height: 500px !important;
-}
-
-/* Corrigir problemas de layout do Grid */
-.MuiGrid-root {
-  display: flex !important;
-}
-
-.MuiGrid-item {
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-/* Garantir que o Paper do mapa tenha altura total */
-.map-paper {
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-.map-paper > div {
-  flex: 1 !important;
-  height: 100% !important;
-}
-

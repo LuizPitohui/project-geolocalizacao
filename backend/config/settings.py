@@ -136,5 +136,3 @@ CORS_ALLOWED_ORIGINS = [
     "https://3000-i4oregv2txxi68p046id1-33f0fcd4.manusvm.computer", # Domínio exposto do frontend
 ]
 
-# Para desenvolvimento, permite todos os origins
-CORS_ALLOW_ALL_ORIGINS = True
