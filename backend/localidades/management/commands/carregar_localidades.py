@@ -22,7 +22,7 @@ def clean_value(value, target_type, default=None):
     return value
 
 class Command(BaseCommand):
-    help = 'Lê as abas da planilha, remove duplicatas e gera um arquivo de fixture para o Django.'
+    help = 'Lê as abas "3ª Tranche" e "Convencional", remove duplicatas e gera um arquivo de fixture.'
 
     def add_arguments(self, parser):
         parser.add_argument('file_path', type=str, help='O caminho do arquivo Excel')
@@ -33,11 +33,11 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f'--- Iniciando processamento da planilha: {file_path} ---'))
 
-        dados_tranche = self.processar_aba('3ª Tranche', file_path, header_row_index=7, is_tranche=True)
-        dados_convencional = self.processar_aba('Convencional', file_path, header_row_index=3, is_tranche=False)
+        dados_tranche = self.processar_aba_tranche(file_path)
+        dados_convencional = self.processar_aba_convencional(file_path)
         
         todos_os_dados = dados_tranche + dados_convencional
-        self.stdout.write(self.style.SUCCESS(f'\nTotal de {len(todos_os_dados)} localidades válidas encontradas na planilha.'))
+        self.stdout.write(self.style.SUCCESS(f'\nTotal de {len(todos_os_dados)} localidades válidas e únicas encontradas na planilha.'))
 
         django_fixture = self.converter_para_fixture(todos_os_dados)
         
@@ -48,45 +48,82 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Arquivo de fixture gerado com sucesso em: {output_path}'))
         self.stdout.write(self.style.SUCCESS('Para carregar os dados no banco, rode agora: python manage.py loaddata localidades_fixture'))
 
-    def processar_aba(self, sheet_name, file_path, header_row_index, is_tranche):
-        self.stdout.write(f"\n--- Lendo aba: '{sheet_name}' ---")
+    def processar_aba_convencional(self, file_path):
+        sheet_name = 'Convencional'
+        header_row_index = 3
+        self.stdout.write(f"\n--- Lendo aba: '{sheet_name}' (por nome de coluna) ---")
         try:
             df = pd.read_excel(file_path, sheet_name=sheet_name, header=header_row_index)
             df.columns = [str(col).strip() for col in df.columns]
             df = df.where(pd.notnull(df), None)
             
             dados_limpos = []
-            chaves_unicas = set() # Usaremos um set para controlar as duplicatas
+            chaves_unicas = set()
 
             for _, row in df.iterrows():
-                if is_tranche:
-                    comunidade = clean_value(row.get('Nome da Comunidade'), str)
-                    municipio = clean_value(row.get('Nome do Município'), str)
-                    lat = clean_value(row.get('Latitude'), float)
-                    lon = clean_value(row.get('Longitude'), float)
-                else:
-                    comunidade = clean_value(row.get('Nome da Comunidade'), str)
-                    municipio = clean_value(row.get('Nome do Município'), str)
-                    lat = clean_value(row.get('Latitude'), float)
-                    lon = clean_value(row.get('Longitude'), float)
+                comunidade = clean_value(row.get('Nome da Comunidade'), str)
+                municipio = clean_value(row.get('Nome do Município'), str)
+                lat = clean_value(row.get('Latitude'), float)
+                lon = clean_value(row.get('Longitude'), float)
 
                 if not all([comunidade, municipio, lat, lon]):
                     continue
 
-                # --- LÓGICA DE DEDUPLICAÇÃO ---
-                fonte_dados = Localidade.FonteDados.TRANCHE if is_tranche else Localidade.FonteDados.CONVENCIONAL
+                fonte_dados = Localidade.FonteDados.CONVENCIONAL
                 chave_unica = (comunidade, municipio, fonte_dados)
                 if chave_unica in chaves_unicas:
-                    continue # Pula esta linha se já vimos essa combinação
+                    continue
                 chaves_unicas.add(chave_unica)
                 
                 item = {
                     'nome_comunidade': comunidade, 'municipio': municipio, 'latitude': lat, 'longitude': lon,
-                    'ibge': clean_value(row.get('Código do Municipio (IBGE)') or row.get('Código do Município (IBGE)'), str),
+                    'ibge': clean_value(row.get('Código do Município (IBGE)'), str),
                     'uf': clean_value(row.get('UF'), str, default='AM'),
                     'tipo_comunidade': clean_value(row.get('Tipo de Comunidade'), str),
-                    'domicilios': clean_value(row.get('Quantidade de Unidades Consumidoras') or row.get('Domicílios'), int),
-                    'total_ligacoes': clean_value(row.get('Total de Ligações') or row.get('Total de unidades consumidoras previstas'), int),
+                    'domicilios': clean_value(row.get('Domicílios'), int),
+                    'total_ligacoes': clean_value(row.get('Total de Ligações'), int),
+                    'fonte_dados': fonte_dados,
+                }
+                dados_limpos.append(item)
+            
+            self.stdout.write(f"Encontradas {len(dados_limpos)} localidades VÁLIDAS e ÚNICAS na aba '{sheet_name}'.")
+            return dados_limpos
+        except Exception as e:
+            raise CommandError(f"ERRO ao processar a aba '{sheet_name}': {e}")
+
+    def processar_aba_tranche(self, file_path):
+        sheet_name = '3ª Tranche'
+        skip_rows = 7
+        self.stdout.write(f"\n--- Lendo aba: '{sheet_name}' (por posição de coluna) ---")
+        try:
+            df = pd.read_excel(file_path, sheet_name=sheet_name, header=None, skiprows=skip_rows)
+            df = df.where(pd.notnull(df), None)
+
+            dados_limpos = []
+            chaves_unicas = set()
+
+            for _, row in df.iterrows():
+                comunidade = clean_value(row.iloc[3], str)
+                municipio = clean_value(row.iloc[2], str)
+                lat = clean_value(row.iloc[26], float)
+                lon = clean_value(row.iloc[27], float)
+
+                if not all([comunidade, municipio, lat, lon]):
+                    continue
+
+                fonte_dados = Localidade.FonteDados.TRANCHE
+                chave_unica = (comunidade, municipio, fonte_dados)
+                if chave_unica in chaves_unicas:
+                    continue
+                chaves_unicas.add(chave_unica)
+                
+                item = {
+                    'nome_comunidade': comunidade, 'municipio': municipio, 'latitude': lat, 'longitude': lon,
+                    'ibge': clean_value(row.iloc[0], str),
+                    'uf': clean_value(row.iloc[1], str, default='AM'),
+                    'tipo_comunidade': clean_value(row.iloc[4], str),
+                    'domicilios': clean_value(row.iloc[22], int),
+                    'total_ligacoes': clean_value(row.iloc[29], int),
                     'fonte_dados': fonte_dados,
                 }
                 dados_limpos.append(item)
