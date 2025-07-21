@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
   const loginUser = async (username, password) => {
     try {
       // Faz a chamada POST para a API de token do Django
-      const response = await axios.post('http://localhost:8081/api/token/', {
+      const response = await axios.post('http://localhost:8000/api/token/', {
         username,
         password
       });

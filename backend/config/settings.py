@@ -132,4 +132,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Permite que o frontend acesse a API Django
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000", # Endereço do nosso frontend React
+    "http://localhost:3001", # Porta alternativa do React
 ]
