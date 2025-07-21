@@ -1,21 +1,30 @@
-# backend/localidades/filters.py
-from rest_framework import filters
+# backend/localidades/filters.py (VERSÃO FINAL E CORRIGIDA)
 
+from rest_framework import filters
+from django_filters import rest_framework as django_filters
+from .models import Localidade
+
+class LocalidadeFilter(django_filters.FilterSet):
+    # Mantemos o filtro customizado para fonte_dados para ignorar maiúsculas/minúsculas
+    fonte_dados = django_filters.CharFilter(field_name='fonte_dados', lookup_expr='iexact')
+    
+    # REMOVEMOS a linha 'calha_rio = ...' que estava causando o problema.
+    # Agora, o django-filter vai criar o filtro para 'calha_rio' automaticamente
+    # a partir da lista 'fields' abaixo, da maneira correta.
+
+    class Meta:
+        model = Localidade
+        # A lista de campos pelos quais queremos permitir a filtragem.
+        fields = ['fonte_dados', 'calha_rio']
+
+# O BoundingBoxFilter que usamos no mapa não precisa de alterações.
 class BoundingBoxFilter(filters.BaseFilterBackend):
-    """
-    Filtra o queryset para incluir apenas localidades dentro de uma caixa delimitadora.
-    """
     def filter_queryset(self, request, queryset, view):
-        # Pega os parâmetros da URL, ex: /api/localidades/?in_bbox=-60,-3,-59,-4
         bbox_string = request.query_params.get('in_bbox')
         if not bbox_string:
             return queryset
-
         try:
-            # Separa os 4 valores: oeste, sul, leste, norte
             west, south, east, north = [float(val) for val in bbox_string.split(',')]
-
-            # Aplica o filtro no queryset do banco de dados
             return queryset.filter(
                 longitude__gte=west,
                 longitude__lte=east,
@@ -23,5 +32,4 @@ class BoundingBoxFilter(filters.BaseFilterBackend):
                 latitude__lte=north
             )
         except (ValueError, IndexError):
-            # Se os parâmetros estiverem errados, não faz nada
             return queryset
