@@ -5,7 +5,7 @@ import axios from 'axios';
 // Cria uma instância "base" do axios com a URL do nosso backend Django.
 // Isso evita que a gente precise digitar 'http://127.0.0.1:8000/api' toda vez.
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api'
+  baseURL: 'https://8000-i4oregv2txxi68p046id1-33f0fcd4.manusvm.computer/api'
 });
 
 // --- Interceptor de Requisições ---

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Grid, Paper } from '@mui/material';
 import MapComponent from '../components/MapComponent';
-import FilterPanel from '../components/FilterPanel';
+import FilterPanelSimple from '../components/FilterPanelSimple';
 import api from '../services/api';
 
 // Componente principal que organiza a página do dashboard
@@ -100,7 +100,7 @@ function DashboardPage() {
       <Grid item xs={12} md={4} style={{ height: '100%', overflowY: 'auto' }}>
         <Paper elevation={3} style={{ padding: '15px' }}>
           <h2>Filtros e Análise</h2>
-          <FilterPanel
+          <FilterPanelSimple
             calhas={calhas}
             onFilterChange={handleFilterChange}
             onCalculateRoute={handleCalculateRoute}
@@ -112,12 +112,14 @@ function DashboardPage() {
 
       {/* Coluna para o Mapa */}
       <Grid item xs={12} md={8} style={{ height: '100%' }}>
-        <Paper elevation={3} style={{ height: 'calc(100% - 16px)' }}>
-          <MapComponent 
-            localidades={localidades} 
-            routePoints={routePoints}
-            routeResult={routeResult}
-          />
+        <Paper elevation={3} className="map-paper" style={{ height: 'calc(100% - 16px)' }}>
+          <div className="map-container">
+            <MapComponent 
+              localidades={localidades} 
+              routePoints={routePoints}
+              routeResult={routeResult}
+            />
+          </div>
         </Paper>
       </Grid>
     </Grid>
