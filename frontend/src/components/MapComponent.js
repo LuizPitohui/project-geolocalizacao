@@ -1,4 +1,4 @@
-// frontend/src/components/MapComponent.js
+// frontend/src/components/MapComponent.js (VERSÃO FINAL CORRIGIDA)
 
 import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -17,12 +17,11 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 // --- Fim da correção do ícone ---
 
-
+// Componente auxiliar para controlar o zoom e a centralização do mapa
 function MapController({ localities, routePoints }) {
   const map = useMap();
 
   useEffect(() => {
-    // CORRIGIDO: Filtra localidades que têm latitude e longitude válidas
     const validLocalities = localities.filter(loc => loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number');
 
     if (routePoints?.pontoA && routePoints?.pontoB) {
@@ -33,11 +32,10 @@ function MapController({ localities, routePoints }) {
       map.fitBounds(bounds, { padding: [50, 50] }); 
     
     } else if (validLocalities.length > 0) {
-      // CORRIGIDO: Usa o acesso direto a latitude e longitude
       const bounds = L.latLngBounds(validLocalities.map(loc => [loc.latitude, loc.longitude]));
       if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [50, 50] });
-      } else {
+      } else if (validLocalities.length === 1) {
         map.setView([validLocalities[0].latitude, validLocalities[0].longitude], 10);
       }
     } else {
@@ -47,6 +45,20 @@ function MapController({ localities, routePoints }) {
 
   return null;
 }
+
+// Componente reutilizável para o conteúdo do popup
+const PopupContent = ({ localidade }) => (
+  <>
+    <b>ID:</b> {localidade.id}<br/>
+    <b>Comunidade:</b> {localidade.nome_comunidade}<br/>
+    <b>Município:</b> {localidade.municipio}<br/>
+    <b>UF:</b> {localidade.uf}<br/>
+    <b>Fonte:</b> {localidade.fonte_dados}<br/>
+    <b>Calha:</b> {localidade.calha_rio_nome || 'Não definida'}<br/>
+    <b>Domicílios/UCs:</b> {localidade.domicilios || 'N/A'}<br/>
+    <b>Total de Ligações:</b> {localidade.total_ligacoes || 'N/A'}
+  </>
+);
 
 const MapComponent = ({ localidades = [], routePoints = {}, routeResult = null }) => {
   const initialPosition = [-4.5, -63];
@@ -62,40 +74,44 @@ const MapComponent = ({ localidades = [], routePoints = {}, routeResult = null }
       <MapController localities={localidades} routePoints={routePoints} />
 
       {isRouteMode ? (
+        // --- MODO DE ROTA ---
         <>
-          {/* Esta parte já estava correta e permanece a mesma */}
+          {/* CORRIGIDO: Popup para o Ponto A com conteúdo completo */}
           <Marker position={[routePoints.pontoA.latitude, routePoints.pontoA.longitude]}>
-            <Popup autoOpen> ... </Popup>
+            <Popup autoOpen>
+              <PopupContent localidade={routePoints.pontoA} />
+            </Popup>
           </Marker>
+
+          {/* CORRIGIDO: Popup para o Ponto B com conteúdo completo */}
           <Marker position={[routePoints.pontoB.latitude, routePoints.pontoB.longitude]}>
-            <Popup autoOpen> ... </Popup>
+            <Popup autoOpen>
+              <PopupContent localidade={routePoints.pontoB} />
+            </Popup>
           </Marker>
+          
           <Polyline positions={[[routePoints.pontoA.latitude, routePoints.pontoA.longitude], [routePoints.pontoB.latitude, routePoints.pontoB.longitude]]} color="red">
-            {routeResult && <Popup> ... </Popup>}
+            {/* Popup para a linha, mostrando o resultado do cálculo */}
+            {routeResult && 
+              <Popup>
+                <b>Distância:</b> {routeResult.distancia} km<br/>
+                <b>Velocidade Média:</b> {routeResult.velocidade} km/h<br/>
+                <b>Tempo Estimado:</b> {routeResult.tempo}
+              </Popup>
+            }
           </Polyline>
         </>
       ) : (
-        // 👇 ESTA É A CORREÇÃO PRINCIPAL
+        // --- MODO DE EXPLORAÇÃO ---
         localidades
-          // 1. Filtra por localidades que têm latitude e longitude
           .filter(localidade => localidade && typeof localidade.latitude === 'number' && typeof localidade.longitude === 'number')
-          // 2. Mapeia usando o acesso direto às propriedades
-          .map(localidade => {
-            return (
-              <Marker key={localidade.id} position={[localidade.latitude, localidade.longitude]}>
-                <Popup>
-                  <b>ID:</b> {localidade.id}<br/>
-                  <b>Comunidade:</b> {localidade.nome_comunidade}<br/>
-                  <b>Município:</b> {localidade.municipio}<br/>
-                  <b>UF:</b> {localidade.uf}<br/>
-                  <b>Fonte:</b> {localidade.fonte_dados}<br/>
-                  <b>Calha:</b> {localidade.calha_rio || 'Não definida'}<br/>
-                  <b>Domicílios/UCs:</b> {localidade.domicilios || 'N/A'}<br/>
-                  <b>Total de Ligações:</b> {localidade.total_ligacoes || 'N/A'}
-                </Popup>
-              </Marker>
-            );
-          })
+          .map(localidade => (
+            <Marker key={localidade.id} position={[localidade.latitude, localidade.longitude]}>
+              <Popup>
+                <PopupContent localidade={localidade} />
+              </Popup>
+            </Marker>
+          ))
       )}
     </MapContainer>
   );
