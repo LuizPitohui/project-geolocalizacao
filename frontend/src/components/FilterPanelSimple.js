@@ -1,20 +1,25 @@
-// frontend/src/components/FilterPanelSimple.js (VERSÃO COM AUTOCOMPLETE)
-
-import React, { useState, useEffect } from 'react';
-// ALTERADO: Importamos o Autocomplete do MUI
+import React, { useState } from 'react';
 import { Button, Box, Typography, Divider, TextField, Autocomplete } from '@mui/material';
 
-const FilterPanelSimple = ({ calhas, localidades, onFilterChange, onCalculateRoute, onClearFilters, currentFilters, routeResult }) => {
-  
-  const [pontoA, setPontoA] = useState(null);
-  const [pontoB, setPontoB] = useState(null);
+// --- RECEBENDO AS NOVAS PROPS: pontoA, setPontoA, pontoB, setPontoB ---
+const FilterPanelSimple = ({
+  calhas,
+  localidades,
+  onFilterChange,
+  onCalculateRoute,
+  onClearFilters,
+  currentFilters,
+  routeResult,
+  pontoA,
+  setPontoA,
+  pontoB,
+  setPontoB
+}) => {
+  // O estado local para os pontos foi removido.
   const [velocidade, setVelocidade] = useState(60);
 
-  useEffect(() => {
-    // Limpa a seleção dos pontos se a lista principal de localidades (o filtro) mudar
-    setPontoA(null);
-    setPontoB(null);
-  }, [localidades]);
+  // O useEffect que limpava os pontos foi removido,
+  // pois essa lógica agora pertence ao DashboardPage.
 
   const handleFilter = (event) => {
     const { name, value } = event.target;
@@ -30,8 +35,8 @@ const FilterPanelSimple = ({ calhas, localidades, onFilterChange, onCalculateRou
       alert("Por favor, selecione as localidades de Ponto A e Ponto B.");
       return;
     }
-    
-    const R = 6371;
+
+    const R = 6371; // Raio da Terra em km
     const dLat = (pontoB.latitude - pontoA.latitude) * Math.PI / 180;
     const dLon = (pontoB.longitude - pontoA.longitude) * Math.PI / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -39,7 +44,7 @@ const FilterPanelSimple = ({ calhas, localidades, onFilterChange, onCalculateRou
               Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distancia = R * c;
- 
+
     const tempoHoras = distancia / velocidade;
     const horas = Math.floor(tempoHoras);
     const minutos = Math.round((tempoHoras - horas) * 60);
@@ -55,8 +60,7 @@ const FilterPanelSimple = ({ calhas, localidades, onFilterChange, onCalculateRou
   return (
     <Box style={{ padding: '20px' }}>
       <Typography variant="h6" gutterBottom>Visualizar Localidades</Typography>
-      
-      {/* Filtros principais não mudam */}
+
       <div style={{ marginBottom: '16px' }}>
         <label htmlFor="fonte-dados" style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Fonte de Dados</label>
         <select id="fonte-dados" name="fonte_dados" value={currentFilters.fonte_dados} onChange={handleFilter} style={{ width: '100%', padding: '12px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '16px' }}>
@@ -82,13 +86,13 @@ const FilterPanelSimple = ({ calhas, localidades, onFilterChange, onCalculateRou
 
       <Typography variant="h6" gutterBottom>Cálculo de Distância</Typography>
 
-      {/* --- ALTERAÇÃO PRINCIPAL AQUI --- */}
       <Autocomplete
         options={localidades}
         getOptionLabel={(option) => `${option.nome_comunidade} (${option.municipio})`}
+        // --- USANDO A PROP DO PAI ---
         value={pontoA}
         onChange={(event, newValue) => {
-          setPontoA(newValue);
+          setPontoA(newValue); // Atualiza o estado no componente pai
         }}
         disabled={localidades.length === 0}
         renderInput={(params) => (
@@ -100,9 +104,10 @@ const FilterPanelSimple = ({ calhas, localidades, onFilterChange, onCalculateRou
       <Autocomplete
         options={localidades}
         getOptionLabel={(option) => `${option.nome_comunidade} (${option.municipio})`}
+        // --- USANDO A PROP DO PAI ---
         value={pontoB}
         onChange={(event, newValue) => {
-          setPontoB(newValue);
+          setPontoB(newValue); // Atualiza o estado no componente pai
         }}
         disabled={localidades.length === 0}
         renderInput={(params) => (
@@ -110,7 +115,7 @@ const FilterPanelSimple = ({ calhas, localidades, onFilterChange, onCalculateRou
         )}
         noOptionsText="Nenhuma localidade encontrada"
       />
-      
+
       <TextField label="Velocidade Média (km/h)" type="number" value={velocidade} onChange={(e) => setVelocidade(e.target.value)} fullWidth margin="normal" />
       <Button variant="contained" color="primary" onClick={handleCalculateClick} fullWidth>
         Calcular e Exibir no Mapa

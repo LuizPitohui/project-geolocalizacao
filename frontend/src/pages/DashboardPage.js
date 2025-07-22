@@ -1,5 +1,3 @@
-// frontend/src/pages/DashboardPage.js (VERSÃO FINAL)
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Paper } from '@mui/material';
 import MapComponent from '../components/MapComponent';
@@ -13,6 +11,11 @@ function DashboardPage() {
     fonte_dados: '',
     calha_rio: ''
   });
+  
+  // --- ESTADO DOS PONTOS A E B MOVIDO PARA CÁ ---
+  const [pontoA, setPontoA] = useState(null);
+  const [pontoB, setPontoB] = useState(null);
+
   const [routePoints, setRoutePoints] = useState({
     pontoA: null,
     pontoB: null
@@ -23,7 +26,7 @@ function DashboardPage() {
     const fetchCalhas = async () => {
       try {
         const response = await api.get('/calhas/');
-        setCalhas(response.data); 
+        setCalhas(response.data);
       } catch (error) {
         console.error("Erro ao buscar calhas:", error);
       }
@@ -42,10 +45,8 @@ function DashboardPage() {
       if (filters.calha_rio) {
         params.append('calha_rio', filters.calha_rio);
       }
-      
       const response = await api.get(`/localidades/?limit=2000&${params.toString()}`);
       setLocalidades(response.data.results || response.data || []);
-
     } catch (error) {
       console.error("Erro ao buscar localidades:", error);
       setLocalidades([]);
@@ -53,8 +54,11 @@ function DashboardPage() {
   }, [filters]);
 
   useEffect(() => {
+    // Limpa a rota e os pontos selecionados quando o filtro principal muda
     setRoutePoints({ pontoA: null, pontoB: null });
     setRouteResult(null);
+    setPontoA(null);
+    setPontoB(null);
     fetchLocalidades();
   }, [fetchLocalidades]);
 
@@ -62,17 +66,22 @@ function DashboardPage() {
     setFilters(newFilters);
   };
 
-  const handleCalculateRoute = (pontoA, pontoB, result) => {
-    setLocalidades([]);
-    setRoutePoints({ pontoA, pontoB });
+  const handleCalculateRoute = (calculatedPontoA, calculatedPontoB, result) => {
+    // --- MUDANÇA PRINCIPAL ---
+    // A lista de localidades NÃO é mais limpa.
+    // Apenas definimos os pontos para desenhar a rota no mapa.
+    setRoutePoints({ pontoA: calculatedPontoA, pontoB: calculatedPontoB });
     setRouteResult(result);
   };
-  
+
   const handleClearFilters = () => {
     setFilters({ fonte_dados: '', calha_rio: '' });
     setRoutePoints({ pontoA: null, pontoB: null });
     setRouteResult(null);
-    setLocalidades([]); 
+    setLocalidades([]);
+    // Limpa também os campos de Autocomplete
+    setPontoA(null);
+    setPontoB(null);
   };
 
   return (
@@ -86,13 +95,17 @@ function DashboardPage() {
           onCalculateRoute={handleCalculateRoute}
           onClearFilters={handleClearFilters}
           currentFilters={filters}
-          // ALTERADO: Passamos o resultado da rota de volta para o painel
           routeResult={routeResult}
+          // --- PASSANDO O ESTADO E OS SETTERS PARA O COMPONENTE FILHO ---
+          pontoA={pontoA}
+          setPontoA={setPontoA}
+          pontoB={pontoB}
+          setPontoB={setPontoB}
         />
       </Paper>
       <Paper elevation={3} sx={{ flex: 1, width: '100%', height: '100%' }}>
-        <MapComponent 
-          localidades={localidades} 
+        <MapComponent
+          localidades={localidades}
           routePoints={routePoints}
           routeResult={routeResult}
         />

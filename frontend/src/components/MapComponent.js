@@ -1,7 +1,6 @@
-// frontend/src/components/MapComponent.js (VERSÃO FINAL CORRIGIDA)
-
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+// Adiciona o LayersControl para alternar entre os mapas
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, LayersControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -66,24 +65,37 @@ const MapComponent = ({ localidades = [], routePoints = {}, routeResult = null }
 
   return (
     <MapContainer center={initialPosition} zoom={5} style={{ height: '100%', width: '100%' }}>
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      />
+      
+      {/* --- CONTROLE DE CAMADAS (LAYERS) --- */}
+      <LayersControl position="topright">
+        <LayersControl.BaseLayer checked name="Mapa de Rua">
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+        </LayersControl.BaseLayer>
+        
+        <LayersControl.BaseLayer name="Satélite">
+          <TileLayer
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            maxZoom={17}
+          />
+        </LayersControl.BaseLayer>
+      </LayersControl>
+      {/* --- FIM DO CONTROLE DE CAMADAS --- */}
 
       <MapController localities={localidades} routePoints={routePoints} />
 
       {isRouteMode ? (
         // --- MODO DE ROTA ---
         <>
-          {/* CORRIGIDO: Popup para o Ponto A com conteúdo completo */}
           <Marker position={[routePoints.pontoA.latitude, routePoints.pontoA.longitude]}>
             <Popup autoOpen>
               <PopupContent localidade={routePoints.pontoA} />
             </Popup>
           </Marker>
 
-          {/* CORRIGIDO: Popup para o Ponto B com conteúdo completo */}
           <Marker position={[routePoints.pontoB.latitude, routePoints.pontoB.longitude]}>
             <Popup autoOpen>
               <PopupContent localidade={routePoints.pontoB} />
@@ -91,7 +103,6 @@ const MapComponent = ({ localidades = [], routePoints = {}, routeResult = null }
           </Marker>
           
           <Polyline positions={[[routePoints.pontoA.latitude, routePoints.pontoA.longitude], [routePoints.pontoB.latitude, routePoints.pontoB.longitude]]} color="red">
-            {/* Popup para a linha, mostrando o resultado do cálculo */}
             {routeResult && 
               <Popup>
                 <b>Distância:</b> {routeResult.distancia} km<br/>

@@ -1,9 +1,8 @@
-// frontend/src/theme.js
-
 import { createTheme } from '@mui/material/styles';
 
 // Paleta de cores profissional inspirada nas suas sugestões.
 // Usamos tons de cinza escuro para o fundo para ser mais agradável aos olhos que o preto puro.
+
 const theme = createTheme({
   palette: {
     mode: 'dark', // Ativa o modo escuro como base
@@ -20,12 +19,14 @@ const theme = createTheme({
       paper: '#16213e',   // Um tom ligeiramente mais claro para painéis, cards e a navbar.
     },
     text: {
-      primary: '#e3f2fd', // Um branco suave para o texto principal, menos cansativo que o branco puro.
-      secondary: '#9fb3c8', // Um cinza-azulado para textos secundários e descrições.
+      primary: '#ffffffff', // Um branco suave para o texto principal, menos cansativo que o branco puro.
+      secondary: '#ffffffff', // Um cinza-azulado para textos secundários e descrições.
     },
     divider: 'rgba(227, 242, 253, 0.12)', // Cor sutil para as linhas divisórias.
   },
   typography: {
+    // --- INÍCIO DAS MUDANÇAS NO TAMANHO DA FONTE ---
+    fontSize: 16, // Define a fonte base para 16px (o padrão é 14px)
     fontFamily: [
       '-apple-system',
       'BlinkMacSystemFont',
@@ -38,11 +39,21 @@ const theme = createTheme({
     h2: {
       fontWeight: 700,
       color: '#e3f2fd',
+      fontSize: '2.5rem', // Tamanho para títulos grandes
     },
     h6: {
       fontWeight: 600,
       color: '#e3f2fd',
+      fontSize: '1.35rem', // Tamanho para o título da Navbar e painéis
     },
+    // Adiciona estilos para o corpo do texto e botões
+    body1: {
+      fontSize: '1.05rem', // Aumenta o texto principal e dos campos de formulário
+    },
+    button: {
+      fontSize: '0.95rem', // Aumenta a fonte dos botões
+    }
+    // --- FIM DAS MUDANÇAS NO TAMANHO DA FONTE ---
   },
   components: {
     // Sobrescreve o estilo padrão do Paper (usado no seu dashboard)

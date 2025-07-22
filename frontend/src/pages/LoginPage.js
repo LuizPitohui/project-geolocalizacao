@@ -1,20 +1,47 @@
-// src/pages/LoginPage.js
-
 import React, { useState, useContext } from 'react';
 import AuthContext from '../context/AuthContext';
-// 1. Importando mais componentes do MUI para o novo design
-import { 
-  Container, 
-  Box, 
-  Paper, 
-  Typography, 
-  TextField, 
-  Button, 
-  CircularProgress, 
+// 1. Importando o ThemeProvider e o createTheme para criar nosso tema local
+import {
+  Container,
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  CircularProgress,
   Alert,
-  Avatar, // Para o logo
-  Fade // Para a animação
+  Avatar,
+  Fade,
+  ThemeProvider,   // Para aplicar nosso tema
+  createTheme,    // Para criar o tema
 } from '@mui/material';
+
+// 2. Definição do tema claro, específico para esta página
+const lightTheme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#003b85', // Um azul escuro e profissional para os botões
+    },
+    background: {
+      default: '#f4f6f8',
+      paper: '#ffffff', // O card de login será branco
+    },
+    text: {
+        primary: '#1c1c1c', // Texto principal quase preto
+        secondary: '#555555' // Texto secundário cinza
+    }
+  },
+});
+
+// 3. Definição da animação do gradiente
+const gradientAnimation = {
+    '@keyframes gradient': {
+      '0%': { backgroundPosition: '0% 50%' },
+      '50%': { backgroundPosition: '100% 50%' },
+      '100%': { backgroundPosition: '0% 50%' },
+    },
+  };
 
 function LoginPage() {
   // A lógica de estado e submit continua exatamente a mesma
@@ -38,101 +65,97 @@ function LoginPage() {
   };
 
   return (
-    // 2. Container principal que ocupa a tela inteira e centraliza o conteúdo
-    <Box 
-      sx={{
-        height: '100vh',
-        width: '100vw',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        // Um fundo gradiente sutil e profissional
-        background: 'linear-gradient(to bottom right, #e0eafc, #cfdef3)',
-      }}
-    >
-      <Container component="main" maxWidth="xs">
-        {/* 3. A animação de Fade envolve o nosso card de login */}
-        <Fade in={true} timeout={1000}>
-          <Paper 
-            elevation={8} // Aumentamos a sombra para mais destaque
-            sx={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              p: 4, // p = padding (espaçamento interno)
-              borderRadius: 2 // Bordas um pouco mais arredondadas
-            }}
-          >
-            {/* 4. Adicionamos o logo usando o componente Avatar */}
-
-            <Avatar 
-            src="/logo.png" 
-            alt="Norte Tech Logo"
-            // A mágica acontece aqui, na prop 'sx'
-            sx={{
-                // --- Estilos para o container do Avatar (o círculo) ---
-                width: 80,
-                height: 80,
-                mb: 2,
-                backgroundColor: 'background.paper', // Um fundo neutro para o logo
-
-                // --- Estilos para a IMAGEM DENTRO do Avatar ---
-                // O '&' se refere ao próprio Avatar.
-                // O '.MuiAvatar-img' se refere à classe da imagem filha que queremos estilizar.
-                '& .MuiAvatar-img': {
-                width: '75%',  // A imagem ocupará 75% da área do círculo
-                height: '75%', // Isso cria um efeito de "padding" visual
-                objectFit: 'contain' // Garante que a imagem inteira apareça, sem cortes
-                }
-            }}
-            />
-            
-  
-            <Typography component="h1" variant="h4" sx={{fontWeight: 'bold'}}>
-              Norte Tech
-            </Typography>
-            
-            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="username"
-                label="Nome de Usuário"
-                name="username"
-                autoComplete="username"
-                autoFocus
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+    // 4. Envolvemos tudo com o ThemeProvider para aplicar nosso tema claro
+    <ThemeProvider theme={lightTheme}>
+      {/* Aplicamos a animação e o gradiente ao container principal */}
+      <Box
+        sx={{
+          height: '100vh',
+          width: '100vw',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          // O gradiente agora tem mais cores para um efeito mais rico
+          background: 'linear-gradient(-45deg, #e0eafc, #cfdef3, #a7c5eb, #6a82fb)',
+          backgroundSize: '400% 400%',
+          animation: 'gradient 15s ease infinite', // Aplica a animação
+          ...gradientAnimation, // Inclui os keyframes da animação
+        }}
+      >
+        <Container component="main" maxWidth="xs">
+          <Fade in={true} timeout={1000}>
+            <Paper
+              elevation={8}
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                p: 4,
+                borderRadius: 2
+              }}
+            >
+              <Avatar
+                src="/logo.png"
+                alt="Norte Tech Logo"
+                sx={{
+                  width: 80,
+                  height: 80,
+                  mb: 2,
+                  backgroundColor: 'transparent', // Fundo transparente para o avatar
+                  '& .MuiAvatar-img': {
+                    width: '75%',
+                    height: '75%',
+                    objectFit: 'contain'
+                  }
+                }}
               />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="password"
-                label="Senha"
-                type="password"
-                id="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              {error && <Alert severity="error" sx={{ width: '100%', mt: 2 }}>{error}</Alert>}
-              
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{ mt: 3, mb: 2, py: 1.5, backgroundColor: '#003b85', '&:hover': { backgroundColor: '#002c6d' } }} // py = padding vertical
-                disabled={loading}
-              >
-                {loading ? <CircularProgress size={24} color="inherit" /> : 'Entrar'}
-              </Button>
-            </Box>
-          </Paper>
-        </Fade>
-      </Container>
-    </Box>
+
+              <Typography component="h1" variant="h4" sx={{ fontWeight: 'bold' }}>
+                Norte Tech
+              </Typography>
+
+              <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="username"
+                  label="Nome de Usuário"
+                  name="username"
+                  autoComplete="username"
+                  autoFocus
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  name="password"
+                  label="Senha"
+                  type="password"
+                  id="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                {error && <Alert severity="error" sx={{ width: '100%', mt: 2 }}>{error}</Alert>}
+
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  sx={{ mt: 3, mb: 2, py: 1.5 }} // O botão usará a cor 'primary' do nosso lightTheme
+                  disabled={loading}
+                >
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Entrar'}
+                </Button>
+              </Box>
+            </Paper>
+          </Fade>
+        </Container>
+      </Box>
+    </ThemeProvider>
   );
 }
 
