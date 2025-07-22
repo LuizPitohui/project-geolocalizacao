@@ -97,3 +97,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+# --- Configuração de Sessão ---
+# Garante que a sessão do usuário expire quando o navegador for fechado.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True

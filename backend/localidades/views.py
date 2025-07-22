@@ -13,7 +13,6 @@ from .serializers import LocalidadeSerializer, CalhaRioSerializer
 
 # --- Views de API para os Dados ---
 class LocalidadeViewSet(viewsets.ReadOnlyModelViewSet):
-    # ... (seu código aqui não muda)
     queryset = Localidade.objects.select_related('calha_rio').all()
     serializer_class = LocalidadeSerializer
     filter_backends = [DjangoFilterBackend, BoundingBoxFilter, filters.SearchFilter]
@@ -22,14 +21,12 @@ class LocalidadeViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
 class CalhaRioViewSet(viewsets.ReadOnlyModelViewSet):
-    # ... (seu código aqui não muda)
     queryset = CalhaRio.objects.all().order_by('nome')
     serializer_class = CalhaRioSerializer
 
 # --- Views de API para Autenticação por Sessão ---
 
 class CSRFTokenView(APIView):
-    """View para fornecer o token CSRF ao frontend."""
     permission_classes = [permissions.AllowAny]
     def get(self, request, format=None):
         return Response({'csrfToken': get_token(request)})
@@ -42,6 +39,12 @@ class LoginView(APIView):
         user = authenticate(username=username, password=password)
         if user is not None:
             login(request, user)
+            
+            # --- CORREÇÃO DEFINITIVA ---
+            # Forçamos a sessão a expirar quando o navegador for fechado.
+            # O valor 0 instrui o Django a criar um cookie de sessão de navegador.
+            request.session.set_expiry(0) 
+            
             return Response({'detail': 'Login bem-sucedido!', 'username': user.username})
         return Response({'detail': 'Credenciais inválidas.'}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -51,10 +54,8 @@ class LogoutView(APIView):
         return Response({'detail': 'Logout bem-sucedido.'}, status=status.HTTP_200_OK)
 
 class UserStatusView(APIView):
-    # ALTERADO: Permite que qualquer um acesse, mas a lógica interna verifica a autenticação
     permission_classes = [permissions.AllowAny]
     def get(self, request, format=None):
         if request.user.is_authenticated:
             return Response({'username': request.user.username, 'isAuthenticated': True})
-        # Retorna uma resposta de sucesso, mas indicando que não há usuário
         return Response({'isAuthenticated': False})

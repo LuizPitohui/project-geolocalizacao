@@ -1,25 +1,91 @@
-// src/theme.js
+// frontend/src/theme.js
+
 import { createTheme } from '@mui/material/styles';
 
+// Paleta de cores profissional inspirada nas suas sugestões.
+// Usamos tons de cinza escuro para o fundo para ser mais agradável aos olhos que o preto puro.
 const theme = createTheme({
   palette: {
-    mode: 'light',
+    mode: 'dark', // Ativa o modo escuro como base
     primary: {
-      main: '#004d40',
+      main: '#2039b4', // O seu azul como cor principal para botões, links e destaques.
+      contrastText: '#ffffff', // Texto branco para contrastar com o azul.
     },
     secondary: {
-      main: '#d81b60',
+      main: '#d4b415', // O seu dourado/amarelo como cor secundária para alertas ou ações especiais.
+      contrastText: '#000000', // Texto preto para contrastar com o dourado.
     },
     background: {
-      default: '#f4f6f8',
-      paper: '#ffffff',
+      default: '#1a1a2e', // Um fundo azul-marinho muito escuro, mais interessante que cinza.
+      paper: '#16213e',   // Um tom ligeiramente mais claro para painéis, cards e a navbar.
     },
+    text: {
+      primary: '#e3f2fd', // Um branco suave para o texto principal, menos cansativo que o branco puro.
+      secondary: '#9fb3c8', // Um cinza-azulado para textos secundários e descrições.
+    },
+    divider: 'rgba(227, 242, 253, 0.12)', // Cor sutil para as linhas divisórias.
   },
   typography: {
-    fontFamily: 'Roboto, Arial, sans-serif',
+    fontFamily: [
+      '-apple-system',
+      'BlinkMacSystemFont',
+      '"Segoe UI"',
+      'Roboto',
+      '"Helvetica Neue"',
+      'Arial',
+      'sans-serif',
+    ].join(','),
+    h2: {
+      fontWeight: 700,
+      color: '#e3f2fd',
+    },
+    h6: {
+      fontWeight: 600,
+      color: '#e3f2fd',
+    },
   },
-  shape: {
-    borderRadius: 4,
+  components: {
+    // Sobrescreve o estilo padrão do Paper (usado no seu dashboard)
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          // Adiciona um contorno sutil para destacar os painéis do fundo.
+          border: '1px solid rgba(227, 242, 253, 0.12)',
+        },
+      },
+    },
+    // Garante que os botões tenham uma aparência consistente
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none', // Tira o texto em maiúsculas dos botões
+          borderRadius: '8px',   // Bordas mais arredondadas
+        },
+      },
+    },
+    // Estiliza os menus de seleção
+    MuiSelect: {
+        styleOverrides: {
+            icon: {
+                color: '#9fb3c8',
+            }
+        }
+    },
+    // Estiliza os campos de texto do Autocomplete
+    MuiTextField: {
+        styleOverrides: {
+            root: {
+                '& label.Mui-focused': {
+                    color: '#d4b415', // Cor do label quando o campo está focado
+                },
+                '& .MuiOutlinedInput-root': {
+                    '&.Mui-focused fieldset': {
+                        borderColor: '#d4b415', // Cor da borda quando focado
+                    },
+                },
+            },
+        },
+    },
   },
 });
 
