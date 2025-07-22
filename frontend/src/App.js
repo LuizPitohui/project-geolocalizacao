@@ -1,48 +1,36 @@
-// src/App.js
-import React, { useContext } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import { Box } from '@mui/material';
-import AuthContext, { AuthProvider } from './context/AuthContext';
-import 'leaflet/dist/leaflet.css';
+// frontend/src/App.js (VERSÃO FINAL E CORRIGIDA)
+
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import PrivateRoute from './utils/PrivateRoute'; // Importa nosso "segurança"
 import Navbar from './layout/Navbar';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-
-// Componente que protege as rotas
-const PrivateRoute = ({ children }) => {
-  const { user } = useContext(AuthContext);
-  return user ? children : <Navigate to="/login" />;
-};
-
-// Layout para as páginas logadas
-const MainLayout = () => (
-  <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-    <Navbar />
-    <Box component="main" sx={{ flexGrow: 1, p: 0, height: 'calc(100vh - 64px)' }}>
-      <DashboardPage /> 
-    </Box>
-  </Box>
-);
+import { CssBaseline, ThemeProvider } from '@mui/material';
+import theme from './theme';
 
 function App() {
   return (
-    // 1. O Router agora é o componente mais externo
     <Router>
-      {/* 2. O AuthProvider fica DENTRO do Router */}
-      <AuthProvider>
-        {/* 3. As rotas ficam dentro de ambos */}
-        <Routes>
-          <Route 
-            path="/" 
-            element={
-              <PrivateRoute>
-                <MainLayout />
-              </PrivateRoute>
-            } 
-          />
-          <Route path="/login" element={<LoginPage />} />
-        </Routes>
-      </AuthProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthProvider>
+          <Navbar />
+          <Routes>
+            {/* Rota pública para o login */}
+            <Route path="/login" element={<LoginPage />} />
+            
+            {/* --- CORREÇÃO PRINCIPAL --- */}
+            {/* Todas as rotas dentro de PrivateRoute só serão acessíveis se o usuário estiver logado */}
+            <Route element={<PrivateRoute />}>
+              <Route path="/" element={<DashboardPage />} />
+              {/* Se você tiver outras páginas protegidas, adicione-as aqui */}
+            </Route>
+
+          </Routes>
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   );
 }

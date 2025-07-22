@@ -1,38 +1,60 @@
-# backend/localidades/views.py
+# backend/localidades/views.py (VERSÃO FINAL E CORRIGIDA)
 
+from django.contrib.auth import authenticate, login, logout
+from django.middleware.csrf import get_token
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
+from .filters import LocalidadeFilter, BoundingBoxFilter
 from .models import Localidade, CalhaRio
 from .serializers import LocalidadeSerializer, CalhaRioSerializer
 
+# --- Views de API para os Dados ---
 class LocalidadeViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet para listar e recuperar Localidades.
-    Este endpoint é somente para leitura (não permite criar ou apagar via API).
-    """
-    # Define a consulta base, pegando todas as localidades que têm coordenadas.
-    queryset = Localidade.objects.exclude(latitude__isnull=True).exclude(longitude__isnull=True).order_by('municipio', 'nome_comunidade')
-    
-    # Usa o serializador que definimos para formatar a saída.
+    # ... (seu código aqui não muda)
+    queryset = Localidade.objects.select_related('calha_rio').all()
     serializer_class = LocalidadeSerializer
-    
-    # Define os mecanismos de filtro que a API irá suportar.
-    filter_backends = [
-        DjangoFilterBackend, # Filtro por campos exatos
-        filters.SearchFilter, # Filtro de busca textual
-    ]
-    
-    # Campos que podem ser usados para filtrar, ex: /api/localidades/?fonte_dados=Convencional
-    filterset_fields = ['fonte_dados', 'municipio', 'calha_rio']
-    
-    # Campos onde a busca textual (ex: /api/localidades/?search=tapaua) será aplicada.
-    # Corrigimos 'comunidade' para 'nome_comunidade'.
-    search_fields = ['nome_comunidade', 'municipio']
+    filter_backends = [DjangoFilterBackend, BoundingBoxFilter, filters.SearchFilter]
+    filterset_class = LocalidadeFilter
+    search_fields = ['nome_comunidade', 'municipio', 'uf']
+    pagination_class = None
 
 class CalhaRioViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet para listar todas as Calhas de Rio.
-    Útil para popular o dropdown de filtros no frontend.
-    """
+    # ... (seu código aqui não muda)
     queryset = CalhaRio.objects.all().order_by('nome')
     serializer_class = CalhaRioSerializer
+
+# --- Views de API para Autenticação por Sessão ---
+
+class CSRFTokenView(APIView):
+    """View para fornecer o token CSRF ao frontend."""
+    permission_classes = [permissions.AllowAny]
+    def get(self, request, format=None):
+        return Response({'csrfToken': get_token(request)})
+
+class LoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+    def post(self, request, format=None):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return Response({'detail': 'Login bem-sucedido!', 'username': user.username})
+        return Response({'detail': 'Credenciais inválidas.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+class LogoutView(APIView):
+    def post(self, request, format=None):
+        logout(request)
+        return Response({'detail': 'Logout bem-sucedido.'}, status=status.HTTP_200_OK)
+
+class UserStatusView(APIView):
+    # ALTERADO: Permite que qualquer um acesse, mas a lógica interna verifica a autenticação
+    permission_classes = [permissions.AllowAny]
+    def get(self, request, format=None):
+        if request.user.is_authenticated:
+            return Response({'username': request.user.username, 'isAuthenticated': True})
+        # Retorna uma resposta de sucesso, mas indicando que não há usuário
+        return Response({'isAuthenticated': False})
